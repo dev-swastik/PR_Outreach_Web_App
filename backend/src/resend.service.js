@@ -15,22 +15,40 @@ export async function sendEmailWithTracking(to, subject, html, emailId) {
   const supabase = getSupabaseClient();
 
   try {
-    // Add tracking pixel and click tracking to email
+    // Add tracking pixel
     const trackingPixel = `<img src="${process.env.BACKEND_URL || 'http://localhost:5000'}/track/open/${emailId}" width="1" height="1" style="display:none" />`;
     const trackedHtml = html + trackingPixel;
 
-    // Send email via Resend
+    // DEV MODE — do not send real email
+    if (!EMAIL_ENABLED) {
+      console.log(`[DEV MODE] Email sending disabled`);
+      console.log({ to, subject });
+
+      await supabase
+        .from('emails')
+        .update({
+          status: 'sent',
+          sent_at: new Date().toISOString(),
+          resend_email_id: 'dev-mode'
+        })
+        .eq('id', emailId);
+
+      return {
+        success: true,
+        devMode: true,
+        emailId
+      };
+    }
+
+    // PROD MODE — real email sending
     const response = await resend.emails.send({
       from: process.env.FROM_EMAIL || 'onboarding@resend.dev',
-      to: to,
-      subject: subject,
+      to,
+      subject,
       html: trackedHtml,
-      tags: [
-        { name: 'email_id', value: emailId }
-      ]
+      tags: [{ name: 'email_id', value: emailId }]
     });
 
-    // Update email record with Resend ID and sent status
     await supabase
       .from('emails')
       .update({
@@ -49,7 +67,6 @@ export async function sendEmailWithTracking(to, subject, html, emailId) {
   } catch (error) {
     console.error('Failed to send email:', error);
 
-    // Update email record with error
     await supabase
       .from('emails')
       .update({
@@ -65,6 +82,7 @@ export async function sendEmailWithTracking(to, subject, html, emailId) {
     };
   }
 }
+
 
 /**
  * Process webhook events from Resend
