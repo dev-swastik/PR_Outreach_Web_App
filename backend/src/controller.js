@@ -16,7 +16,7 @@ export const startCampaign = async (req, res) => {
   } = req.body;
 
   try {
-    // 1️⃣ Fetch journalists from scraper service
+    // Fetch journalists from scraper service
     const scraperRes = await fetch(
       `${process.env.SCRAPER_SERVICE_URL}/scrape?topic=${encodeURIComponent(topic)}`
     );
@@ -31,11 +31,11 @@ export const startCampaign = async (req, res) => {
       return res.status(404).json({ error: "No journalists found" });
     }
 
-    // 2️⃣ Create campaign
+    // Create campaign
     const campaign = await createCampaign(company, topic);
     let queuedCount = 0;
 
-    // 3️⃣ Process journalists
+    // Process journalists
     for (const j of journalists) {
       const journalist = await upsertJournalist(j);
       const article = journalist.recent_articles?.[0];
@@ -69,7 +69,7 @@ export const startCampaign = async (req, res) => {
       queuedCount++;
     }
 
-    // 4️⃣ Update campaign stats
+    // Update campaign stats
     await updateCampaignStats(campaign.id, {
       total_emails: queuedCount,
       sent_count: queuedCount
