@@ -10,6 +10,7 @@ import {
   trackEmailOpen,
   trackEmailClick,
   handleResendWebhook,
+  unsubscribe,
   getCampaignAnalytics
 } from "./tracking.js";
 import dotenv from "dotenv";

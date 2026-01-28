@@ -17,6 +17,10 @@ if (!scraperRes.ok) {
   throw new Error("Failed to fetch journalists from scraper service");
 }
 
+if (journalist.unsubscribed) {
+  console.log(`Skipping unsubscribed journalist: ${journalist.email}`);
+  continue;
+}
 const scrapedJournalists = await scraperRes.json();
 
 // Call the function

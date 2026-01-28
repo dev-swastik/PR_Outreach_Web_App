@@ -44,5 +44,15 @@ export async function sendEmailWithTracking(to, subject, html, emailId) {
     })
     .eq("id", emailId);
 
+  const unsubscribeLink = `
+  <p style="font-size:12px;color:#888;">
+    <a href="${process.env.BACKEND_URL}/unsubscribe/${emailId}">
+      Unsubscribe
+    </a>
+  </p>
+`;
+
+const trackedHtml = html + trackingPixel + unsubscribeLink;
+
   return { success: true, emailId };
 }

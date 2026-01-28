@@ -65,7 +65,9 @@ CREATE TABLE IF NOT EXISTS journalists (
   topics text[] DEFAULT ARRAY[]::text[],
   recent_articles jsonb DEFAULT '[]'::jsonb,
   created_at timestamptz DEFAULT now(),
-  updated_at timestamptz DEFAULT now()
+  updated_at timestamptz DEFAULT now(),
+  unsubscribed BOOLEAN DEFAULT false,
+  unsubscribed_at timestamptz
 );
 
 -- Create campaigns table
@@ -80,6 +82,7 @@ CREATE TABLE IF NOT EXISTS campaigns (
   clicked_count integer DEFAULT 0,
   bounced_count integer DEFAULT 0,
   blocked_count integer DEFAULT 0,
+  unsubscribed_count integer DEFAULT 0,
   created_at timestamptz DEFAULT now(),
   updated_at timestamptz DEFAULT now()
 );

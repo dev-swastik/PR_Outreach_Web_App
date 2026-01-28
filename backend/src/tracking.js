@@ -157,6 +157,46 @@ export async function handleResendWebhook(req, res) {
 }
 
 /**
+ * Unsubscribe option
+ */
+ export async function unsubscribe(req, res) {
+  const { emailId } = req.params;
+  const supabase = getSupabaseClient();
+
+  try {
+    // Find the email → journalist
+    const { data: email, error } = await supabase
+      .from("emails")
+      .select("journalist_id")
+      .eq("id", emailId)
+      .single();
+
+    if (error || !email) {
+      return res.status(404).send("Invalid unsubscribe link");
+    }
+
+    // Mark journalist as unsubscribed
+    await supabase
+      .from("journalists")
+      .update({
+        unsubscribed: true,
+        unsubscribed_at: new Date().toISOString()
+      })
+      .eq("id", email.journalist_id);
+
+    res.send(`
+      <h2>You’re unsubscribed</h2>
+      <p>You will no longer receive emails from us.</p>
+    `);
+
+  } catch (err) {
+    console.error("Unsubscribe error:", err);
+    res.status(500).send("Something went wrong");
+  }
+}
+
+
+/**
  * Get campaign analytics
  */
 export async function getCampaignAnalytics(req, res) {
