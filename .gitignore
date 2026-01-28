@@ -19,5 +19,6 @@ backend/keys/
 # Tests
 backend/src/data.json
 backend/data.json
+scraper/nj_teacher_scraper.py
 #Data file too large
 # Test 1
