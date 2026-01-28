@@ -24,6 +24,7 @@ console.log("- GOOGLE_API_KEY:", !!process.env.GOOGLE_API_KEY);
 console.log("- SUPABASE_URL:", !!process.env.SUPABASE_URL);
 console.log("- SUPABASE_SERVICE_ROLE_KEY:", !!process.env.SUPABASE_SERVICE_ROLE_KEY);
 console.log("- RESEND_API_KEY:", !!process.env.RESEND_API_KEY);
+console.log("- Email_Status:", !!process.env.EMAIL_ENABLED);
 
 const app = express();
 app.use(cors());
