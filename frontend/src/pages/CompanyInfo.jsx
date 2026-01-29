@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Save, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { supabase } from '../lib/supabase';
 import './CompanyInfo.css';
 
 const BRAND_TONES = ['Professional', 'Friendly', 'Informative', 'Persuasive'];
@@ -14,14 +15,39 @@ export default function CompanyInfo() {
     targetTopics: [],
     brandTone: 'Professional',
   });
+  const [companyId, setCompanyId] = useState(null);
   const [loading, setLoading] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    // TODO: Load from Supabase
-    setSaved(true);
+    loadCompanyInfo();
   }, []);
+
+  async function loadCompanyInfo() {
+    try {
+      const { data, error } = await supabase
+        .from('company_info')
+        .select('*')
+        .maybeSingle();
+
+      if (error) throw error;
+
+      if (data) {
+        setCompanyId(data.id);
+        setFormData({
+          companyName: data.company_name || '',
+          description: data.description || '',
+          website: data.website || '',
+          industry: data.industry || '',
+          targetTopics: data.target_topics || [],
+          brandTone: data.brand_tone || 'Professional',
+        });
+      }
+    } catch (error) {
+      console.error('Failed to load company info:', error);
+    }
+  }
 
   function handleInputChange(e) {
     const { name, value } = e.target;
@@ -48,8 +74,33 @@ export default function CompanyInfo() {
         throw new Error('Company name is required');
       }
 
-      // TODO: Save to Supabase
-      await new Promise(resolve => setTimeout(resolve, 500));
+      const payload = {
+        company_name: formData.companyName,
+        description: formData.description,
+        website: formData.website,
+        industry: formData.industry,
+        target_topics: formData.targetTopics,
+        brand_tone: formData.brandTone,
+        updated_at: new Date().toISOString(),
+      };
+
+      if (companyId) {
+        const { error } = await supabase
+          .from('company_info')
+          .update(payload)
+          .eq('id', companyId);
+
+        if (error) throw error;
+      } else {
+        const { data, error } = await supabase
+          .from('company_info')
+          .insert(payload)
+          .select()
+          .single();
+
+        if (error) throw error;
+        if (data) setCompanyId(data.id);
+      }
 
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);

@@ -1,31 +1,89 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Upload, Filter, Trash2, Download } from 'lucide-react';
+import { supabase } from '../lib/supabase';
 import './EmailLists.css';
 
 export default function EmailLists() {
-  const [lists, setLists] = useState([
-    {
-      id: '1',
-      name: 'Tech Journalists',
-      source: 'Scraped',
-      status: 'Active',
-      count: 156,
-      unsubscribed: 3,
-      blocked: 2,
-    },
-  ]);
+  const [lists, setLists] = useState([]);
   const [filterStatus, setFilterStatus] = useState('all');
   const [uploading, setUploading] = useState(false);
+  const [loading, setLoading] = useState(true);
 
-  function handleFileUpload(e) {
+  useEffect(() => {
+    loadCampaigns();
+  }, []);
+
+  async function loadCampaigns() {
+    try {
+      const { data, error } = await supabase
+        .from('campaigns')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      const formattedLists = data.map(campaign => ({
+        id: campaign.id,
+        name: campaign.name,
+        source: 'Scraped',
+        status: campaign.status || 'Active',
+        count: campaign.total_journalists || 0,
+        unsubscribed: 0,
+        blocked: campaign.blocked_count || 0,
+      }));
+
+      setLists(formattedLists);
+    } catch (error) {
+      console.error('Failed to load campaigns:', error);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleFileUpload(e) {
     const file = e.target.files?.[0];
     if (!file) return;
 
     setUploading(true);
-    // TODO: Parse CSV and upload to Supabase
-    setTimeout(() => {
+    try {
+      const text = await file.text();
+      const rows = text.split('\n').filter(row => row.trim());
+      const journalists = rows.slice(1).map(row => {
+        const [email, name, publication] = row.split(',').map(s => s.trim());
+        return { email, name, publication };
+      }).filter(j => j.email);
+
+      const { data: campaign, error: campaignError } = await supabase
+        .from('campaigns')
+        .insert({
+          name: file.name.replace('.csv', ''),
+          status: 'draft',
+          total_journalists: journalists.length,
+        })
+        .select()
+        .single();
+
+      if (campaignError) throw campaignError;
+
+      const journalistsWithCampaign = journalists.map(j => ({
+        ...j,
+        campaign_id: campaign.id,
+        status: 'pending',
+      }));
+
+      const { error: journalistsError } = await supabase
+        .from('journalists')
+        .insert(journalistsWithCampaign);
+
+      if (journalistsError) throw journalistsError;
+
+      await loadCampaigns();
+    } catch (error) {
+      console.error('Failed to upload file:', error);
+      alert('Failed to upload file');
+    } finally {
       setUploading(false);
-    }, 2000);
+    }
   }
 
   const filteredLists = lists.filter(list => {
@@ -77,7 +135,11 @@ export default function EmailLists() {
           <div>Actions</div>
         </div>
 
-        {filteredLists.length === 0 ? (
+        {loading ? (
+          <div className="empty-state">
+            <p>Loading...</p>
+          </div>
+        ) : filteredLists.length === 0 ? (
           <div className="empty-state">
             <p>No lists found. Upload or scrape contacts to get started.</p>
           </div>

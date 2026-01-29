@@ -11,6 +11,41 @@ import { generatePersonalizedEmail } from "./ai.service.js";
 import { rateLimiter } from "./rateLimiter.service.js";
 import { findJournalistEmail } from "./enrichment/hunter.service.js";
 
+export const generateEmail = async (req, res) => {
+  const { referenceContent, objective, tone, length, companyInfo } = req.body;
+
+  try {
+    const context = {
+      referenceContent: referenceContent || '',
+      objective: objective || 'Pitch article',
+      tone: tone || 'Professional',
+      length: length || 'Medium',
+      companyInfo: companyInfo || {}
+    };
+
+    const prompt = `Generate a personalized email with the following context:
+Objective: ${context.objective}
+Tone: ${context.tone}
+Length: ${context.length}
+${context.referenceContent ? `Reference Content: ${context.referenceContent}` : ''}
+${context.companyInfo.company_name ? `Company: ${context.companyInfo.company_name}` : ''}
+${context.companyInfo.description ? `About: ${context.companyInfo.description}` : ''}
+
+Generate a professional email with a subject line and body.`;
+
+    const email = await generatePersonalizedEmail({}, context.companyInfo, prompt);
+
+    const subjectMatch = email.match(/Subject:\s*(.+)/);
+    const subject = subjectMatch ? subjectMatch[1].trim() : 'Follow Up';
+    const body = email.replace(/Subject:\s*.+\n\n?/, '').trim();
+
+    res.json({ subject, body });
+  } catch (error) {
+    console.error('Error generating email:', error);
+    res.status(500).json({ error: error.message });
+  }
+};
+
 export const startCampaign = async (req, res) => {
   const { company, topic, senderName = "PR Team", senderTitle = "Communications" } = req.body;
 

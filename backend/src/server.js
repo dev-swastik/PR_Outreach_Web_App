@@ -4,7 +4,8 @@ import {
   startCampaign,
   getRateLimiterStatus,
   getCampaigns,
-  getCampaignDetails
+  getCampaignDetails,
+  generateEmail
 } from "./controller.js";
 import {
   trackEmailOpen,
@@ -35,6 +36,9 @@ app.post("/start-campaign", startCampaign);
 app.get("/campaigns", getCampaigns);
 app.get("/campaigns/:campaignId", getCampaignDetails);
 app.get("/campaigns/:campaignId/analytics", getCampaignAnalytics);
+
+// Email generation
+app.post("/generate-email", generateEmail);
 
 // Rate limiter status
 app.get("/rate-limiter/status", getRateLimiterStatus);

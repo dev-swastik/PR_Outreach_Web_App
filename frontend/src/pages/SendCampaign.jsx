@@ -1,21 +1,56 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Play, Pause, AlertCircle } from 'lucide-react';
+import { supabase } from '../lib/supabase';
+import { api } from '../lib/api';
 import './SendCampaign.css';
 
 export default function SendCampaign() {
+  const [campaigns, setCampaigns] = useState([]);
   const [selectedCampaign, setSelectedCampaign] = useState('');
   const [sendingSpeed, setSendingSpeed] = useState('Medium');
   const [sending, setSending] = useState(false);
   const [progress, setProgress] = useState(null);
 
+  useEffect(() => {
+    loadCampaigns();
+  }, []);
+
+  async function loadCampaigns() {
+    try {
+      const { data, error } = await supabase
+        .from('campaigns')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setCampaigns(data || []);
+    } catch (error) {
+      console.error('Failed to load campaigns:', error);
+    }
+  }
+
   async function handleStartSending() {
     setSending(true);
     try {
-      // TODO: Call backend email sending API
-      setProgress({ sent: 0, total: 150, remaining: 150 });
+      const campaign = campaigns.find(c => c.id === selectedCampaign);
+      if (!campaign) {
+        throw new Error('Campaign not found');
+      }
 
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      setProgress({ sent: 45, total: 150, remaining: 105 });
+      setProgress({ sent: 0, total: campaign.total_journalists || 0, remaining: campaign.total_journalists || 0 });
+
+      const response = await api.sendCampaign(selectedCampaign);
+
+      setProgress({
+        sent: response.sent || 0,
+        total: campaign.total_journalists || 0,
+        remaining: (campaign.total_journalists || 0) - (response.sent || 0),
+      });
+
+      await loadCampaigns();
+    } catch (error) {
+      console.error('Failed to send campaign:', error);
+      alert('Failed to send campaign');
     } finally {
       setSending(false);
     }
@@ -41,8 +76,11 @@ export default function SendCampaign() {
               disabled={sending}
             >
               <option value="">-- Choose a campaign --</option>
-              <option value="1">Q1 EdTech Outreach</option>
-              <option value="2">AI Newsletter Pitch</option>
+              {campaigns.map(campaign => (
+                <option key={campaign.id} value={campaign.id}>
+                  {campaign.name} ({campaign.total_journalists || 0} contacts)
+                </option>
+              ))}
             </select>
           </div>
 

@@ -1,33 +1,43 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Send, Flag } from 'lucide-react';
+import { supabase } from '../lib/supabase';
 import './RespondResponses.css';
 
 export default function RespondResponses() {
   const [selectedResponse, setSelectedResponse] = useState(null);
   const [replyText, setReplyText] = useState('');
+  const [responses, setResponses] = useState([]);
 
-  const responses = [
-    {
-      id: '1',
-      from: 'jane@publication.com',
-      name: 'Jane Doe',
-      subject: 'RE: Exciting Partnership Opportunity',
-      message: 'Hi, this sounds interesting. Can you tell me more about your initiative?',
-      timestamp: '2024-01-15 14:32',
-      campaign: 'Q1 EdTech Outreach',
-      sentiment: 'Interested',
-    },
-    {
-      id: '2',
-      from: 'john@media.com',
-      name: 'John Smith',
-      subject: 'RE: Partnership Inquiry',
-      message: 'Not interested at this time.',
-      timestamp: '2024-01-15 10:15',
-      campaign: 'Q1 EdTech Outreach',
-      sentiment: 'Not Interested',
-    },
-  ];
+  useEffect(() => {
+    loadResponses();
+  }, []);
+
+  async function loadResponses() {
+    try {
+      const { data, error } = await supabase
+        .from('email_tracking')
+        .select('*')
+        .eq('has_response', true)
+        .order('timestamp', { ascending: false });
+
+      if (error) throw error;
+
+      const formattedResponses = (data || []).map(item => ({
+        id: item.id,
+        from: item.journalist_email || 'unknown@example.com',
+        name: item.journalist_name || 'Unknown',
+        subject: 'RE: Follow Up',
+        message: item.response_text || 'No message content',
+        timestamp: new Date(item.timestamp || item.created_at).toLocaleString(),
+        campaign: item.campaign_id || 'Unknown Campaign',
+        sentiment: 'Interested',
+      }));
+
+      setResponses(formattedResponses);
+    } catch (error) {
+      console.error('Failed to load responses:', error);
+    }
+  }
 
   return (
     <div className="respond-responses">

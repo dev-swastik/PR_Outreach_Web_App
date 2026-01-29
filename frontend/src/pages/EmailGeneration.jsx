@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Wand2, Copy, Save } from 'lucide-react';
+import { api } from '../lib/api';
 import './EmailGeneration.css';
 
 export default function EmailGeneration() {
@@ -15,13 +16,20 @@ export default function EmailGeneration() {
   async function handleGenerate() {
     setGenerating(true);
     try {
-      // TODO: Call backend API for AI generation
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      const response = await api.post('/generate-email', {
+        referenceContent: formData.referenceContent,
+        objective: formData.objective,
+        tone: formData.tone,
+        length: formData.length,
+      });
 
       setPreview({
-        subject: 'Exciting Partnership Opportunity in EdTech',
-        body: 'Hi Jane,\n\nI came across your excellent coverage of AI in education and thought you might be interested in our latest initiative...',
+        subject: response.subject || 'Follow Up',
+        body: response.body || 'Email content...',
       });
+    } catch (error) {
+      console.error('Failed to generate email:', error);
+      alert('Failed to generate email');
     } finally {
       setGenerating(false);
     }
