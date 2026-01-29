@@ -162,3 +162,78 @@ export const getCampaignDetails = async (req, res) => {
 export const getRateLimiterStatus = (req, res) => {
   res.json(rateLimiter.getStatus());
 };
+
+export const previewEmail = async (req, res) => {
+  const { emailId } = req.params;
+  const supabase = getSupabaseClient();
+
+  try {
+    const { data: email, error } = await supabase
+      .from("emails")
+      .select("*, journalist:journalists(*)")
+      .eq("id", emailId)
+      .single();
+
+    if (error || !email) {
+      return res.status(404).send("<h1>Email not found</h1>");
+    }
+
+    res.setHeader("Content-Type", "text/html");
+    res.send(`
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="UTF-8">
+        <title>Email Preview - ${email.subject}</title>
+        <style>
+          body { font-family: system-ui, sans-serif; margin: 0; padding: 0; background: #f5f5f5; }
+          .preview-header { background: #1e40af; color: white; padding: 20px; }
+          .preview-info { background: white; padding: 20px; margin: 20px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+          .preview-info h3 { margin-top: 0; }
+          .info-row { display: flex; gap: 10px; margin: 8px 0; }
+          .info-label { font-weight: 600; min-width: 80px; }
+          .email-content { background: white; padding: 40px; margin: 20px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+          .badge { padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: 600; }
+          .badge.dev { background: #fbbf24; color: #78350f; }
+          .badge.sent { background: #10b981; color: white; }
+        </style>
+      </head>
+      <body>
+        <div class="preview-header">
+          <h1>📧 Email Preview</h1>
+          <p>This is how the email will appear to recipients</p>
+        </div>
+
+        <div class="preview-info">
+          <h3>Email Details</h3>
+          <div class="info-row">
+            <span class="info-label">Status:</span>
+            <span class="badge ${email.resend_email_id === 'dev-mode' ? 'dev' : 'sent'}">
+              ${email.resend_email_id === 'dev-mode' ? 'DEV MODE' : email.status.toUpperCase()}
+            </span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">To:</span>
+            <span>${email.journalist.first_name} ${email.journalist.last_name} &lt;${email.journalist.email}&gt;</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">Subject:</span>
+            <span>${email.subject}</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">Email ID:</span>
+            <span>${email.id}</span>
+          </div>
+        </div>
+
+        <div class="email-content">
+          ${email.body}
+        </div>
+      </body>
+      </html>
+    `);
+  } catch (error) {
+    console.error("Preview error:", error);
+    res.status(500).send("<h1>Error loading preview</h1>");
+  }
+};
