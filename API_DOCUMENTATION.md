@@ -1,6 +1,6 @@
 # API Documentation
 
-Complete API reference for the PR Outreach App.
+Complete API reference for the Email Outreach App.
 
 ## Base URL
 
@@ -10,7 +10,7 @@ http://localhost:5000
 
 ## Authentication
 
-Currently, the API does not require authentication. In production, you should implement API key authentication or OAuth.
+Currently, the API does not require authentication. In production, we should implement API key authentication or OAuth.
 
 ---
 

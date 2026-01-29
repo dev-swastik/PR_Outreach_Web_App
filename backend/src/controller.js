@@ -1,168 +1,164 @@
-import { exec } from "child_process";
+import fetch from "node-fetch";
+import {
+  upsertJournalist,
+  createCampaign,
+  createEmailRecord,
+  updateCampaignStats,
+  getCampaignEmails,
+  getSupabaseClient
+} from "./supabase.js";
 import { generatePersonalizedEmail } from "./ai.service.js";
-import { upsertJournalist, createCampaign, createEmailRecord, updateCampaignStats } from "./supabase.js";
 import { rateLimiter } from "./rateLimiter.service.js";
-import path from "path";
+import { findJournalistEmail } from "./enrichment/hunter.service.js";
+
+export const generateEmail = async (req, res) => {
+  const { referenceContent, objective, tone, length, companyInfo } = req.body;
+
+  try {
+    const context = {
+      referenceContent: referenceContent || '',
+      objective: objective || 'Pitch article',
+      tone: tone || 'Professional',
+      length: length || 'Medium',
+      companyInfo: companyInfo || {}
+    };
+
+    const prompt = `Generate a personalized email with the following context:
+Objective: ${context.objective}
+Tone: ${context.tone}
+Length: ${context.length}
+${context.referenceContent ? `Reference Content: ${context.referenceContent}` : ''}
+${context.companyInfo.company_name ? `Company: ${context.companyInfo.company_name}` : ''}
+${context.companyInfo.description ? `About: ${context.companyInfo.description}` : ''}
+
+Generate a professional email with a subject line and body.`;
+
+    const email = await generatePersonalizedEmail({}, context.companyInfo, prompt);
+
+    const subjectMatch = email.match(/Subject:\s*(.+)/);
+    const subject = subjectMatch ? subjectMatch[1].trim() : 'Follow Up';
+    const body = email.replace(/Subject:\s*.+\n\n?/, '').trim();
+
+    res.json({ subject, body });
+  } catch (error) {
+    console.error('Error generating email:', error);
+    res.status(500).json({ error: error.message });
+  }
+};
 
 export const startCampaign = async (req, res) => {
   const { company, topic, senderName = "PR Team", senderTitle = "Communications" } = req.body;
 
   try {
-    // Find the scraper script path (relative to project root)
-    const scraperPath = path.join(process.cwd(), "..", "scraper", "run_scraper.py");
+    const scraperRes = await fetch(
+      `${process.env.SCRAPER_SERVICE_URL}/scrape?topic=${encodeURIComponent(topic)}`
+    );
 
-    // Run scraper to find journalists
-    console.log(`Starting campaign for topic: ${topic}`);
-    exec(`python "${scraperPath}" "${topic}"`, async (err, stdout, stderr) => {
-      if (err) {
-        console.error("Scraper error:", err, stderr);
-        return res.status(500).json({ error: "Failed to scrape journalists", details: err.message });
-      }
+    if (!scraperRes.ok) {
+      throw new Error("Failed to fetch journalists from scraper service");
+    }
 
-      let scrapedJournalists;
-      try {
-        scrapedJournalists = JSON.parse(stdout);
-      } catch (e) {
-        console.error("Invalid scraper output:", stdout);
-        return res.status(500).json({ error: "Invalid scraper output", details: stdout });
-      }
+    const journalists = await scraperRes.json();
+    if (!journalists.length) {
+      return res.status(404).json({ error: "No journalists found" });
+    }
 
-      if (!scrapedJournalists || scrapedJournalists.length === 0) {
-        return res.status(404).json({ error: "No journalists found for this topic" });
-      }
+    const campaign = await createCampaign(company, topic);
 
-      try {
-        // Create campaign in database
-        const campaign = await createCampaign(company, topic);
-        console.log(`Campaign created with ID: ${campaign.id}`);
+    let queued = 0;
 
-        const emailsQueued = [];
+    for (const j of journalists) {
+        const emailData = await findJournalistEmail({
+        firstName: j.first_name,
+        lastName: j.last_name,
+        domain: j.publication_domain
+    });
 
-        // Process each journalist
-        for (const journalistData of scrapedJournalists) {
-          // Store journalist in database
-          const journalist = await upsertJournalist(journalistData);
+    // Skip if no verified email
+    if (!emailData?.email || emailData.confidence < 70) {
+        console.log(
+        `Skipping ${j.first_name} ${j.last_name} — no verified email`
+        );
+        continue;
+    }
 
-          // Get most recent article for personalization
-          const recentArticle = journalist.recent_articles?.[0];
+    // Store journalist WITH verified email
+    const journalist = await upsertJournalist({
+        ...j,
+        email: emailData.email,
+        email_confidence: emailData.confidence,
+        email_source: emailData.source
+    });
 
-          // Generate personalized email
-          const emailBody = await generatePersonalizedEmail({
-            journalistName: `${journalist.first_name} ${journalist.last_name}`.trim() || "there",
-            publication: journalist.publication_name || "your publication",
-            articleTitle: recentArticle?.title || "your recent article",
-            topic,
-            company,
-            senderName,
-            senderTitle
-          });
+    const article = journalist.recent_articles?.[0];
 
-          const subject = `Story idea: ${topic}`;
+    // Generate AI email
+    const emailBody = await generatePersonalizedEmail({
+        journalistName: `${journalist.first_name} ${journalist.last_name}`.trim(),
+        publication: journalist.publication_name,
+        articleTitle: article?.title,
+        topic,
+        company,
+        senderName,
+        senderTitle
+    });
 
-          // Create email record in database
-          const emailRecord = await createEmailRecord(
-            campaign.id,
-            journalist.id,
-            subject,
-            emailBody
-          );
+    // Create email DB record
+    const email = await createEmailRecord(
+        campaign.id,
+        journalist.id,
+        `Story idea: ${topic}`,
+        emailBody
+    );
 
-          // Queue email for rate-limited sending
-          const queueStatus = await rateLimiter.queueEmail({
-            to: journalist.email,
-            subject,
-            html: emailBody,
-            emailId: emailRecord.id,
-            campaignId: campaign.id
-          });
+    // Queue email
+    await rateLimiter.queueEmail({
+        to: journalist.email,
+        subject: `Story idea: ${topic}`,
+        html: emailBody,
+        emailId: email.id,
+        campaignId: campaign.id
+    });
+    queued++;
+}
 
-          emailsQueued.push({
-            journalist: {
-              name: `${journalist.first_name} ${journalist.last_name}`.trim(),
-              email: journalist.email,
-              publication: journalist.publication_name
-            },
-            emailId: emailRecord.id,
-            queueStatus
-          });
-        }
 
-        // Update campaign with total emails
-        await updateCampaignStats(campaign.id, {
-          total_emails: emailsQueued.length
-        });
+    await updateCampaignStats(campaign.id, {
+      total_emails: queued,
+      sent_count: queued
+    });
 
-        // Return response
-        res.json({
-          success: true,
-          campaign: {
-            id: campaign.id,
-            company: campaign.company,
-            topic: campaign.topic,
-            totalEmails: emailsQueued.length
-          },
-          emails: emailsQueued,
-          rateLimiter: rateLimiter.getStatus()
-        });
-
-      } catch (dbError) {
-        console.error("Database error:", dbError);
-        return res.status(500).json({ error: "Database operation failed", details: dbError.message });
-      }
+    res.json({
+      success: true,
+      campaignId: campaign.id,
+      queued
     });
 
   } catch (error) {
     console.error("Campaign error:", error);
-    res.status(500).json({ error: "Failed to start campaign", details: error.message });
+    res.status(500).json({ error: error.message });
   }
 };
 
-/**
- * Get rate limiter status
- */
-export const getRateLimiterStatus = (req, res) => {
-  const status = rateLimiter.getStatus();
-  res.json(status);
-};
-
-/**
- * Get all campaigns
- */
 export const getCampaigns = async (req, res) => {
-  try {
-    const { getSupabaseClient } = await import('./supabase.js');
-    const supabase = getSupabaseClient();
+  const supabase = getSupabaseClient();
 
-    const { data, error } = await supabase
-      .from('campaigns')
-      .select('*')
-      .order('created_at', { ascending: false });
+  const { data, error } = await supabase
+    .from("campaigns")
+    .select("*")
+    .order("created_at", { ascending: false });
 
-    if (error) throw error;
+  if (error) return res.status(500).json({ error: error.message });
 
-    res.json({ campaigns: data });
-
-  } catch (error) {
-    console.error("Error fetching campaigns:", error);
-    res.status(500).json({ error: error.message });
-  }
+  res.json({ campaigns: data });
 };
 
-/**
- * Get campaign details with emails
- */
 export const getCampaignDetails = async (req, res) => {
-  try {
-    const { campaignId } = req.params;
-    const { getCampaignEmails } = await import('./supabase.js');
-
-    const emails = await getCampaignEmails(campaignId);
-
-    res.json({ emails });
-
-  } catch (error) {
-    console.error("Error fetching campaign details:", error);
-    res.status(500).json({ error: error.message });
-  }
+  const { campaignId } = req.params;
+  const emails = await getCampaignEmails(campaignId);
+  res.json({ emails });
 };
 
+export const getRateLimiterStatus = (req, res) => {
+  res.json(rateLimiter.getStatus());
+};

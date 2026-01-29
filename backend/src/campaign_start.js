@@ -9,16 +9,19 @@ const req = {
   }
 };
 
-const res = {
-  json: (data) => {
-    console.log("Response JSON:", JSON.stringify(data, null, 2));
-  },
-  status: (code) => {
-    return {
-      json: (data) => console.log(`Error ${code}:`, data)
-    };
-  }
-};
+const scraperRes = await fetch(
+  `${process.env.SCRAPER_SERVICE_URL}/scrape?topic=${encodeURIComponent(topic)}`
+);
+
+if (!scraperRes.ok) {
+  throw new Error("Failed to fetch journalists from scraper service");
+}
+
+if (journalist.unsubscribed) {
+  console.log(`Skipping unsubscribed journalist: ${journalist.email}`);
+  continue;
+}
+const scrapedJournalists = await scraperRes.json();
 
 // Call the function
 startCampaign(req, res);

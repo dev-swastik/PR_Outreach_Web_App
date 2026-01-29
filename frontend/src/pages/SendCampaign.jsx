@@ -1,0 +1,182 @@
+import { useState, useEffect } from 'react';
+import { Play, Pause, AlertCircle } from 'lucide-react';
+import { supabase } from '../lib/supabase';
+import { api } from '../lib/api';
+import './SendCampaign.css';
+
+export default function SendCampaign() {
+  const [campaigns, setCampaigns] = useState([]);
+  const [selectedCampaign, setSelectedCampaign] = useState('');
+  const [sendingSpeed, setSendingSpeed] = useState('Medium');
+  const [sending, setSending] = useState(false);
+  const [progress, setProgress] = useState(null);
+
+  useEffect(() => {
+    loadCampaigns();
+  }, []);
+
+  async function loadCampaigns() {
+    try {
+      const { data, error } = await supabase
+        .from('campaigns')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setCampaigns(data || []);
+    } catch (error) {
+      console.error('Failed to load campaigns:', error);
+    }
+  }
+
+  async function handleStartSending() {
+    setSending(true);
+    try {
+      const campaign = campaigns.find(c => c.id === selectedCampaign);
+      if (!campaign) {
+        throw new Error('Campaign not found');
+      }
+
+      setProgress({ sent: 0, total: campaign.total_journalists || 0, remaining: campaign.total_journalists || 0 });
+
+      const response = await api.sendCampaign(selectedCampaign);
+
+      setProgress({
+        sent: response.sent || 0,
+        total: campaign.total_journalists || 0,
+        remaining: (campaign.total_journalists || 0) - (response.sent || 0),
+      });
+
+      await loadCampaigns();
+    } catch (error) {
+      console.error('Failed to send campaign:', error);
+      alert('Failed to send campaign');
+    } finally {
+      setSending(false);
+    }
+  }
+
+  return (
+    <div className="send-campaign">
+      <div className="page-header">
+        <h1>Send Email Campaign</h1>
+        <p>Control email sending with intelligent rate limiting</p>
+      </div>
+
+      <div className="send-container">
+        <div className="config-section">
+          <h2>Campaign Settings</h2>
+
+          <div className="form-group">
+            <label htmlFor="campaign">Select Campaign</label>
+            <select
+              id="campaign"
+              value={selectedCampaign}
+              onChange={e => setSelectedCampaign(e.target.value)}
+              disabled={sending}
+            >
+              <option value="">-- Choose a campaign --</option>
+              {campaigns.map(campaign => (
+                <option key={campaign.id} value={campaign.id}>
+                  {campaign.name} ({campaign.total_journalists || 0} contacts)
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="emailAccount">Email Account</label>
+            <div className="email-account">
+              <span className="verified-badge">✓ Verified</span>
+              <span>campaigns@dumroo.ai</span>
+            </div>
+          </div>
+
+          <div className="form-group">
+            <label>Sending Speed</label>
+            <div className="speed-options">
+              <button
+                className={`speed-btn ${sendingSpeed === 'Slow' ? 'active' : ''}`}
+                onClick={() => setSendingSpeed('Slow')}
+                disabled={sending}
+              >
+                <div className="speed-label">Slow</div>
+                <small>Safe (60s apart)</small>
+              </button>
+              <button
+                className={`speed-btn ${sendingSpeed === 'Medium' ? 'active' : ''}`}
+                onClick={() => setSendingSpeed('Medium')}
+                disabled={sending}
+              >
+                <div className="speed-label">Medium</div>
+                <small>Standard (30s apart)</small>
+              </button>
+              <button
+                className={`speed-btn ${sendingSpeed === 'Fast' ? 'active' : ''}`}
+                onClick={() => setSendingSpeed('Fast')}
+                disabled={sending}
+              >
+                <div className="speed-label">Fast</div>
+                <small>Quick (5s apart)</small>
+              </button>
+            </div>
+          </div>
+
+          {sendingSpeed === 'Fast' && (
+            <div className="warning-banner">
+              <AlertCircle size={20} />
+              <span>Fast sending may impact deliverability. Use with caution.</span>
+            </div>
+          )}
+
+          <div className="action-buttons">
+            <button
+              className="btn btn-primary"
+              onClick={handleStartSending}
+              disabled={!selectedCampaign || sending}
+            >
+              <Play size={18} />
+              Start Campaign
+            </button>
+            <button className="btn btn-secondary" disabled={!sending}>
+              <Pause size={18} />
+              Pause
+            </button>
+          </div>
+        </div>
+
+        {progress && (
+          <div className="progress-section">
+            <h2>Send Progress</h2>
+
+            <div className="progress-stats">
+              <div className="stat">
+                <div className="stat-label">Sent</div>
+                <div className="stat-value">{progress.sent}</div>
+              </div>
+              <div className="stat">
+                <div className="stat-label">Remaining</div>
+                <div className="stat-value">{progress.remaining}</div>
+              </div>
+              <div className="stat">
+                <div className="stat-label">Total</div>
+                <div className="stat-value">{progress.total}</div>
+              </div>
+            </div>
+
+            <div className="progress-bar">
+              <div
+                className="progress-fill"
+                style={{ width: `${(progress.sent / progress.total) * 100}%` }}
+              ></div>
+            </div>
+
+            <div className="progress-info">
+              {((progress.sent / progress.total) * 100).toFixed(1)}% Complete
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}

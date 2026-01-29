@@ -2,27 +2,19 @@ import { getSupabaseClient } from './supabase.js';
 
 /**
  * Track email open via tracking pixel
- * Called when recipient loads the 1x1 transparent pixel
  */
 export async function trackEmailOpen(req, res) {
   const { emailId } = req.params;
   const supabase = getSupabaseClient();
 
   try {
-    // Get email record
-    const { data: email, error } = await supabase
+    const { data: email } = await supabase
       .from('emails')
       .select('id, campaign_id, opened_at')
       .eq('id', emailId)
       .maybeSingle();
 
-    if (error || !email) {
-      console.error('Email not found for tracking:', emailId);
-      return sendTrackingPixel(res);
-    }
-
-    // Only count first open
-    if (!email.opened_at) {
+    if (email && !email.opened_at) {
       await supabase
         .from('emails')
         .update({
@@ -31,38 +23,22 @@ export async function trackEmailOpen(req, res) {
         })
         .eq('id', emailId);
 
-      // Update campaign stats
       if (email.campaign_id) {
-        const { data: campaign } = await supabase
-          .from('campaigns')
-          .select('opened_count')
-          .eq('id', email.campaign_id)
-          .single();
-
-        if (campaign) {
-          await supabase
-            .from('campaigns')
-            .update({
-              opened_count: (campaign.opened_count || 0) + 1
-            })
-            .eq('id', email.campaign_id);
-        }
+        await supabase.rpc('increment_campaign_counter', {
+          campaign_id: email.campaign_id,
+          field_name: 'opened_count'
+        });
       }
-
-      console.log(`Email opened: ${emailId}`);
     }
-
-    sendTrackingPixel(res);
-
-  } catch (error) {
-    console.error('Error tracking email open:', error);
-    sendTrackingPixel(res);
+  } catch (err) {
+    console.error('Open tracking error:', err);
   }
+
+  sendTrackingPixel(res);
 }
 
 /**
  * Track email link click
- * Wrap links in emails with this tracking URL
  */
 export async function trackEmailClick(req, res) {
   const { emailId } = req.params;
@@ -70,20 +46,13 @@ export async function trackEmailClick(req, res) {
   const supabase = getSupabaseClient();
 
   try {
-    // Get email record
-    const { data: email, error } = await supabase
+    const { data: email } = await supabase
       .from('emails')
       .select('id, campaign_id, clicked_at')
       .eq('id', emailId)
       .maybeSingle();
 
-    if (error || !email) {
-      console.error('Email not found for click tracking:', emailId);
-      return res.redirect(url || 'https://example.com');
-    }
-
-    // Only count first click
-    if (!email.clicked_at) {
+    if (email && !email.clicked_at) {
       await supabase
         .from('emails')
         .update({
@@ -92,197 +61,186 @@ export async function trackEmailClick(req, res) {
         })
         .eq('id', emailId);
 
-      // Update campaign stats
       if (email.campaign_id) {
-        const { data: campaign } = await supabase
-          .from('campaigns')
-          .select('clicked_count')
-          .eq('id', email.campaign_id)
-          .single();
-
-        if (campaign) {
-          await supabase
-            .from('campaigns')
-            .update({
-              clicked_count: (campaign.clicked_count || 0) + 1
-            })
-            .eq('id', email.campaign_id);
-        }
+        await supabase.rpc('increment_campaign_counter', {
+          campaign_id: email.campaign_id,
+          field_name: 'clicked_count'
+        });
       }
-
-      console.log(`Email link clicked: ${emailId}`);
     }
-
-    // Redirect to actual URL
-    res.redirect(url || 'https://example.com');
-
-  } catch (error) {
-    console.error('Error tracking click:', error);
-    res.redirect(url || 'https://example.com');
+  } catch (err) {
+    console.error('Click tracking error:', err);
   }
+
+  res.redirect(url || 'https://example.com');
 }
 
 /**
- * Handle Resend webhook events
- * Resend will POST events to this endpoint for delivery, bounce, etc.
+ * Handle Resend webhooks (DELIVERED / BOUNCED / BLOCKED)
  */
 export async function handleResendWebhook(req, res) {
+  const supabase = getSupabaseClient();
+  const event = req.body;
+
   try {
-    const event = req.body;
-
-    console.log('Received Resend webhook:', event.type);
-
-    const supabase = getSupabaseClient();
-    const eventType = event.type;
     const emailData = event.data;
 
-    // Find email by Resend ID
     const { data: email } = await supabase
       .from('emails')
-      .select('id, campaign_id, delivered_at, bounced_at')
+      .select('*')
       .eq('resend_email_id', emailData.email_id)
       .maybeSingle();
 
     if (!email) {
-      console.error('Email not found for Resend ID:', emailData.email_id);
       return res.status(404).json({ error: 'Email not found' });
     }
 
     const updates = {};
-    let campaignIncrement = null;
+    let campaignField = null;
 
-    switch (eventType) {
+    switch (event.type) {
       case 'email.delivered':
         updates.status = 'delivered';
         updates.delivered_at = new Date().toISOString();
+        campaignField = 'sent_count';
         break;
 
       case 'email.bounced':
-      case 'email.delivery_delayed':
-        if (!email.bounced_at) {
+      case 'email.delivery_delayed': {
+        const reason = emailData.bounce?.message?.toLowerCase() || '';
+
+        const isBlocked =
+          reason.includes('block') ||
+          reason.includes('policy') ||
+          reason.includes('spam');
+
+        if (isBlocked) {
+          updates.status = 'blocked';
+          updates.blocked_at = new Date().toISOString();
+          updates.error_message = emailData.bounce?.message || 'Email blocked';
+          campaignField = 'blocked_count';
+        } else {
           updates.status = 'bounced';
           updates.bounced_at = new Date().toISOString();
           updates.error_message = emailData.bounce?.message || 'Email bounced';
-          campaignIncrement = { field: 'bounced_count', value: 1 };
+          campaignField = 'bounced_count';
         }
         break;
+      }
 
       case 'email.complained':
-        updates.status = 'bounced';
-        updates.error_message = 'Spam complaint received';
+        updates.status = 'blocked';
+        updates.error_message = 'Spam complaint';
+        campaignField = 'blocked_count';
         break;
-
-      default:
-        console.log('Unhandled Resend event:', eventType);
     }
 
-    // Update email record
-    if (Object.keys(updates).length > 0) {
+    if (Object.keys(updates).length) {
       await supabase
         .from('emails')
         .update(updates)
         .eq('id', email.id);
     }
 
-    // Update campaign stats
-    if (campaignIncrement && email.campaign_id) {
-      const { data: campaign } = await supabase
-        .from('campaigns')
-        .select(campaignIncrement.field)
-        .eq('id', email.campaign_id)
-        .single();
-
-      if (campaign) {
-        await supabase
-          .from('campaigns')
-          .update({
-            [campaignIncrement.field]: (campaign[campaignIncrement.field] || 0) + campaignIncrement.value
-          })
-          .eq('id', email.campaign_id);
-      }
+    if (campaignField && email.campaign_id) {
+      await supabase.rpc('increment_campaign_counter', {
+        campaign_id: email.campaign_id,
+        field_name: campaignField
+      });
     }
 
-    res.status(200).json({ success: true });
-
-  } catch (error) {
-    console.error('Error handling Resend webhook:', error);
-    res.status(500).json({ error: error.message });
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Webhook error:', err);
+    res.status(500).json({ error: err.message });
   }
 }
+
+/**
+ * Unsubscribe option
+ */
+ export async function unsubscribe(req, res) {
+  const { emailId } = req.params;
+  const supabase = getSupabaseClient();
+
+  try {
+    // Find the email → journalist
+    const { data: email, error } = await supabase
+      .from("emails")
+      .select("journalist_id")
+      .eq("id", emailId)
+      .single();
+
+    if (error || !email) {
+      return res.status(404).send("Invalid unsubscribe link");
+    }
+
+    // Mark journalist as unsubscribed
+    await supabase
+      .from("journalists")
+      .update({
+        unsubscribed: true,
+        unsubscribed_at: new Date().toISOString()
+      })
+      .eq("id", email.journalist_id);
+
+    res.send(`
+      <h2>You’re unsubscribed</h2>
+      <p>You will no longer receive emails from us.</p>
+    `);
+
+  } catch (err) {
+    console.error("Unsubscribe error:", err);
+    res.status(500).send("Something went wrong");
+  }
+}
+
 
 /**
  * Get campaign analytics
  */
 export async function getCampaignAnalytics(req, res) {
-  const { campaignId } = req.params;
   const supabase = getSupabaseClient();
+  const { campaignId } = req.params;
 
-  try {
-    // Get campaign data
-    const { data: campaign, error } = await supabase
-      .from('campaigns')
-      .select('*')
-      .eq('id', campaignId)
-      .single();
+  const { data: campaign } = await supabase
+    .from('campaigns')
+    .select('*')
+    .eq('id', campaignId)
+    .single();
 
-    if (error || !campaign) {
-      return res.status(404).json({ error: 'Campaign not found' });
-    }
+  const { data: emails } = await supabase
+    .from('emails')
+    .select(`
+      id,
+      status,
+      journalist:journalists(first_name, last_name, email, publication_name)
+    `)
+    .eq('campaign_id', campaignId);
 
-    // Get all emails for detailed breakdown
-    const { data: emails } = await supabase
-      .from('emails')
-      .select(`
-        id,
-        status,
-        sent_at,
-        delivered_at,
-        opened_at,
-        clicked_at,
-        bounced_at,
-        journalist:journalists(first_name, last_name, email, publication_name)
-      `)
-      .eq('campaign_id', campaignId)
-      .order('created_at', { ascending: false });
+  const sent = campaign.sent_count || 0;
 
-    // Calculate rates
-    const sentCount = campaign.sent_count || 0;
-    const stats = {
-      campaign: {
-        id: campaign.id,
-        company: campaign.company,
-        topic: campaign.topic,
-        status: campaign.status,
-        created_at: campaign.created_at
-      },
-      totals: {
-        total: campaign.total_emails,
-        sent: sentCount,
-        delivered: sentCount - (campaign.bounced_count || 0),
-        opened: campaign.opened_count || 0,
-        clicked: campaign.clicked_count || 0,
-        bounced: campaign.bounced_count || 0
-      },
-      rates: {
-        deliveryRate: sentCount > 0 ? ((sentCount - (campaign.bounced_count || 0)) / sentCount * 100).toFixed(2) : 0,
-        openRate: sentCount > 0 ? ((campaign.opened_count || 0) / sentCount * 100).toFixed(2) : 0,
-        clickRate: sentCount > 0 ? ((campaign.clicked_count || 0) / sentCount * 100).toFixed(2) : 0,
-        bounceRate: sentCount > 0 ? ((campaign.bounced_count || 0) / sentCount * 100).toFixed(2) : 0
-      },
-      emails: emails || []
-    };
-
-    res.json(stats);
-
-  } catch (error) {
-    console.error('Error getting campaign analytics:', error);
-    res.status(500).json({ error: error.message });
-  }
+  res.json({
+    campaign,
+    totals: {
+      total: campaign.total_emails,
+      sent,
+      delivered: sent - (campaign.bounced_count || 0) - (campaign.blocked_count || 0),
+      opened: campaign.opened_count || 0,
+      clicked: campaign.clicked_count || 0,
+      bounced: campaign.bounced_count || 0,
+      blocked: campaign.blocked_count || 0
+    },
+    rates: {
+      openRate: sent ? ((campaign.opened_count || 0) / sent * 100).toFixed(2) : 0,
+      clickRate: sent ? ((campaign.clicked_count || 0) / sent * 100).toFixed(2) : 0,
+      bounceRate: sent ? ((campaign.bounced_count || 0) / sent * 100).toFixed(2) : 0,
+      blockedRate: sent ? ((campaign.blocked_count || 0) / sent * 100).toFixed(2) : 0
+    },
+    emails
+  });
 }
 
-/**
- * Send 1x1 transparent tracking pixel
- */
 function sendTrackingPixel(res) {
   const pixel = Buffer.from(
     'R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7',
@@ -291,10 +249,7 @@ function sendTrackingPixel(res) {
 
   res.writeHead(200, {
     'Content-Type': 'image/gif',
-    'Content-Length': pixel.length,
-    'Cache-Control': 'no-cache, no-store, must-revalidate',
-    'Pragma': 'no-cache',
-    'Expires': '0'
+    'Cache-Control': 'no-store'
   });
 
   res.end(pixel);
