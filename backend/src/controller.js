@@ -75,7 +75,7 @@ export const startCampaign = async (req, res) => {
         const emailData = await findJournalistEmail({
         firstName: j.first_name,
         lastName: j.last_name,
-        domain: j.publication_domain
+        domain: j.domain
     });
 
     // Skip if no verified email
