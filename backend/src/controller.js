@@ -78,27 +78,23 @@ export const startCampaign = async (req, res) => {
         domain: j.domain
     });
 
-    // Skip if no verified email
-    if (!emailData?.email || emailData.confidence < 70) {
+    // Try to enrich with email from Hunter
+    const journalistData = {
+        ...j,
+        email: emailData?.email || j.email || null,
+        email_confidence: emailData?.confidence || 0,
+        email_source: emailData?.source || null
+    };
+
+    // Always save the journalist to database
+    const journalist = await upsertJournalist(journalistData);
+
+    // Skip email generation if no verified email
+    if (!journalist.email || journalist.email_confidence < 70) {
         console.log(
-        `Skipping ${j.first_name} ${j.last_name} — no verified email`
+        `⚠️  Saved ${j.first_name} ${j.last_name} but skipping email (no verified email)`
         );
         continue;
-    }
-
-    // Store journalist WITH verified email
-    const journalist = await upsertJournalist({
-        ...j,
-        email: emailData.email,
-        email_confidence: emailData.confidence,
-        email_source: emailData.source
-    });
-
-    if (journalist.email_confidence < 70) {
-        console.log(
-            `Skipping ${journalist.email} due to low confidence`
-        );
-    continue;
     }
     const article = journalist.recent_articles?.[0];
 

@@ -28,6 +28,7 @@ console.log("- GOOGLE_API_KEY:", !!process.env.GOOGLE_API_KEY);
 console.log("- SUPABASE_URL:", !!process.env.SUPABASE_URL);
 console.log("- SUPABASE_SERVICE_ROLE_KEY:", !!process.env.SUPABASE_SERVICE_ROLE_KEY);
 console.log("- RESEND_API_KEY:", !!process.env.RESEND_API_KEY);
+console.log("- HUNTER_API_KEY:", !!process.env.HUNTER_API_KEY);
 console.log("- SCRAPER_SERVICE_URL:", !!process.env.SCRAPER_SERVICE_URL, process.env.SCRAPER_SERVICE_URL);
 console.log(
   "- EMAIL_ENABLED (raw):",
@@ -73,6 +74,7 @@ app.get("/health", (req, res) => {
       googleAI: !!process.env.GOOGLE_API_KEY,
       supabase: !!process.env.SUPABASE_URL && !!process.env.SUPABASE_SERVICE_ROLE_KEY,
       resend: !!process.env.RESEND_API_KEY,
+      hunter: !!process.env.HUNTER_API_KEY,
       scraper: !!process.env.SCRAPER_SERVICE_URL
     }
   });
