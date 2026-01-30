@@ -14,7 +14,7 @@ HUNTER_API_KEY = os.getenv("HUNTER_API_KEY")
 print("=" * 50)
 print("Email Scraper Service Starting...")
 print(f"Environment file: {root_env}")
-print(f"HUNTER_API_KEY loaded: {'✓ Yes' if HUNTER_API_KEY else '✗ No'}")
+print(f"HUNTER_API_KEY loaded: {'Yes' if HUNTER_API_KEY else 'No'}")
 print("=" * 50)
 
 app = FastAPI()
@@ -40,12 +40,12 @@ def find_email_with_hunter(first_name, last_name, domain):
     }
 
     try:
-        print(f"🔍 Searching Hunter for: {first_name} {last_name} @ {domain}")
+        print(f"Searching Hunter for: {first_name} {last_name} @ {domain}")
         res = requests.get(url, params=params, timeout=10)
         data = res.json()
 
         if not res.ok:
-            print(f"❌ Hunter API error: {data}")
+            print(f"Hunter API error: {data}")
             return None, 0, "api_error"
 
         if data.get("data") and data["data"].get("email"):
@@ -56,7 +56,7 @@ def find_email_with_hunter(first_name, last_name, domain):
         else:
             print(f"⚠️  No email found (API response: {data.get('errors', 'no data')})")
     except Exception as e:
-        print(f"❌ Hunter error for {first_name} {last_name}: {e}")
+        print(f"Hunter error for {first_name} {last_name}: {e}")
 
     return None, 0, "not_found"
 
@@ -67,7 +67,7 @@ def scrape_journalists(topic: str = Query(...)):
     print(f"{'='*60}\n")
 
     journalists = scrape_journalists_from_publishers(topic)
-    print(f"\n📰 Found {len(journalists)} journalists from scraper\n")
+    print(f"\nFound {len(journalists)} journalists from scraper\n")
 
     enriched = []
     MIN_CONFIDENCE = 70
@@ -115,11 +115,11 @@ def scrape_journalists(topic: str = Query(...)):
 
     print(f"\n{'='*60}")
     print(f"📊 Enrichment Summary:")
-    print(f"  ✓ Verified emails (>={MIN_CONFIDENCE}% confidence): {stats['verified']}")
-    print(f"  ⚠️  Low confidence emails: {stats['low_confidence']}")
-    print(f"  ⚠️  No email found: {stats['not_found']}")
-    print(f"  ⚠️  Fallback emails: {stats['fallback']}")
-    print(f"  📧 Total journalists: {len(enriched)}")
+    print(f" Verified emails (>={MIN_CONFIDENCE}% confidence): {stats['verified']}")
+    print(f" Low confidence emails: {stats['low_confidence']}")
+    print(f" No email found: {stats['not_found']}")
+    print(f" Fallback emails: {stats['fallback']}")
+    print(f" Total journalists: {len(enriched)}")
     print(f"{'='*60}\n")
 
     return enriched
