@@ -9,7 +9,6 @@ import {
 } from "./supabase.js";
 import { generatePersonalizedEmail } from "./ai.service.js";
 import { rateLimiter } from "./rateLimiter.service.js";
-import { findJournalistEmail } from "./enrichment/hunter.service.js";
 
 export const generateEmail = async (req, res) => {
   const { referenceContent, objective, tone, length, companyInfo } = req.body;
@@ -72,18 +71,12 @@ export const startCampaign = async (req, res) => {
     let queued = 0;
 
     for (const j of journalists) {
-        const emailData = await findJournalistEmail({
-        firstName: j.first_name,
-        lastName: j.last_name,
-        domain: j.domain
-    });
-
-    // Try to enrich with email from Hunter
+    // Use email data from scraper service (already enriched)
     const journalistData = {
         ...j,
-        email: emailData?.email || j.email || null,
-        email_confidence: emailData?.confidence || 0,
-        email_source: emailData?.source || null
+        email: j.email || null,
+        email_confidence: j.email_confidence || 0,
+        email_source: j.email_source || 'scraper'
     };
 
     // Always save the journalist to database
@@ -92,7 +85,7 @@ export const startCampaign = async (req, res) => {
     // Skip email generation if no verified email
     if (!journalist.email || journalist.email_confidence < 70) {
         console.log(
-        `⚠️  Saved ${j.first_name} ${j.last_name} but skipping email (no verified email)`
+        `⚠️  Saved ${j.first_name} ${j.last_name} but skipping email (confidence: ${journalist.email_confidence}%)`
         );
         continue;
     }
