@@ -44,7 +44,7 @@ Guidelines:
 
   try {
     const response = await client.chat.completions.create({
-      model: "gpt-4.1-mini",
+      model: "gpt-4o-mini",
       messages: [
         { role: "system", content: "You write concise, professional PR emails." },
         { role: "user", content: prompt }

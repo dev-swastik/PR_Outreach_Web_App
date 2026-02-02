@@ -71,7 +71,7 @@ app.get("/health", (req, res) => {
     status: "ok",
     timestamp: new Date().toISOString(),
     environment: {
-      googleAI: !!process.env.GOOGLE_API_KEY,
+      openAI: !!process.env.OPENAI_API_KEY,
       supabase: !!process.env.SUPABASE_URL && !!process.env.SUPABASE_SERVICE_ROLE_KEY,
       resend: !!process.env.RESEND_API_KEY,
       hunter: !!process.env.HUNTER_API_KEY,
