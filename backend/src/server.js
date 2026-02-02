@@ -1,5 +1,12 @@
 import express from "express";
 import cors from "cors";
+import dotenv from "dotenv";
+import path from "path";
+
+dotenv.config({
+    path: path.resolve(process.cwd(), "..", ".env")
+});
+
 import {
   startCampaign,
   getRateLimiterStatus,
@@ -15,13 +22,6 @@ import {
   unsubscribe,
   getCampaignAnalytics
 } from "./tracking.js";
-import dotenv from "dotenv";
-import path from "path";
-
-dotenv.config({
-    path: path.resolve(process.cwd(), "..", ".env")
-});
-
 console.log("CWD:", process.cwd());
 console.log("Environment variables loaded:");
 console.log("- OPENAI_API_KEY:", !!process.env.OPENAI_API_KEY);
