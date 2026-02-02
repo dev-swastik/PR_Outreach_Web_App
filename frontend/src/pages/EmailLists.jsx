@@ -22,14 +22,21 @@ export default function EmailLists() {
 
       if (error) throw error;
 
-      const formattedLists = data.map(campaign => ({
-        id: campaign.id,
-        name: campaign.name,
-        source: 'Scraped',
-        status: campaign.status || 'Active',
-        count: campaign.total_journalists || 0,
-        unsubscribed: 0,
-        blocked: campaign.blocked_count || 0,
+      const formattedLists = await Promise.all(data.map(async campaign => {
+        const { count } = await supabase
+          .from('emails')
+          .select('*', { count: 'exact', head: true })
+          .eq('campaign_id', campaign.id);
+
+        return {
+          id: campaign.id,
+          name: `${campaign.company} - ${campaign.topic}`,
+          source: 'Scraped',
+          status: campaign.status || 'draft',
+          count: count || 0,
+          unsubscribed: campaign.unsubscribed_count || 0,
+          blocked: campaign.blocked_count || 0,
+        };
       }));
 
       setLists(formattedLists);
@@ -48,39 +55,53 @@ export default function EmailLists() {
     try {
       const text = await file.text();
       const rows = text.split('\n').filter(row => row.trim());
-      const journalists = rows.slice(1).map(row => {
-        const [email, name, publication] = row.split(',').map(s => s.trim());
-        return { email, name, publication };
+      const journalistsData = rows.slice(1).map(row => {
+        const [email, firstName, lastName, publication] = row.split(',').map(s => s.trim());
+        return { email, firstName, lastName, publication };
       }).filter(j => j.email);
 
       const { data: campaign, error: campaignError } = await supabase
         .from('campaigns')
         .insert({
-          name: file.name.replace('.csv', ''),
+          company: file.name.replace('.csv', ''),
+          topic: 'Uploaded List',
           status: 'draft',
-          total_journalists: journalists.length,
+          total_emails: journalistsData.length,
         })
         .select()
         .single();
 
       if (campaignError) throw campaignError;
 
-      const journalistsWithCampaign = journalists.map(j => ({
-        ...j,
-        campaign_id: campaign.id,
-        status: 'pending',
-      }));
+      for (const j of journalistsData) {
+        const { data: journalist, error: journalistError } = await supabase
+          .from('journalists')
+          .upsert({
+            email: j.email,
+            first_name: j.firstName || '',
+            last_name: j.lastName || '',
+            publication_name: j.publication || '',
+          }, { onConflict: 'email' })
+          .select()
+          .single();
 
-      const { error: journalistsError } = await supabase
-        .from('journalists')
-        .insert(journalistsWithCampaign);
-
-      if (journalistsError) throw journalistsError;
+        if (!journalistError && journalist) {
+          await supabase
+            .from('emails')
+            .insert({
+              campaign_id: campaign.id,
+              journalist_id: journalist.id,
+              subject: '',
+              body: '',
+              status: 'draft',
+            });
+        }
+      }
 
       await loadCampaigns();
     } catch (error) {
       console.error('Failed to upload file:', error);
-      alert('Failed to upload file');
+      alert('Failed to upload file: ' + error.message);
     } finally {
       setUploading(false);
     }
