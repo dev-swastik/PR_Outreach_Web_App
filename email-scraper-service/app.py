@@ -54,7 +54,7 @@ def find_email_with_hunter(first_name, last_name, domain):
             print(f"✓ Found: {email} (confidence: {score})")
             return (email, score, "hunter")
         else:
-            print(f"⚠️  No email found (API response: {data.get('errors', 'no data')})")
+            print(f" No email found (API response: {data.get('errors', 'no data')})")
     except Exception as e:
         print(f"Hunter error for {first_name} {last_name}: {e}")
 
