@@ -104,7 +104,7 @@ export default function SendCampaign() {
               <option value="">-- Choose a campaign --</option>
               {campaigns.map(campaign => (
                 <option key={campaign.id} value={campaign.id}>
-                  {campaign.name} ({campaign.total_journalists || 0} contacts)
+                  {campaign.company} - {campaign.topic} ({campaign.total_emails || 0} contacts)
                 </option>
               ))}
             </select>
