@@ -123,3 +123,8 @@ def scrape_journalists(topic: str = Query(...)):
     print(f"{'='*60}\n")
 
     return enriched
+
+if __name__ == "__main__":
+    import uvicorn
+    port = int(os.getenv("PORT", 5001))
+    uvicorn.run(app, host="0.0.0.0", port=port)
