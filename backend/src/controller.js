@@ -102,7 +102,7 @@ export const startCampaign = async (req, res) => {
         senderTitle
     });
 
-    // Create email DB record
+    // Create email DB record (but don't send yet)
     const email = await createEmailRecord(
         campaign.id,
         journalist.id,
@@ -110,21 +110,13 @@ export const startCampaign = async (req, res) => {
         emailBody
     );
 
-    // Queue email
-    await rateLimiter.queueEmail({
-        to: journalist.email,
-        subject: `Story idea: ${topic}`,
-        html: emailBody,
-        emailId: email.id,
-        campaignId: campaign.id
-    });
     queued++;
 }
 
 
     await updateCampaignStats(campaign.id, {
       total_emails: queued,
-      sent_count: queued
+      sent_count: 0
     });
 
     res.json({
@@ -156,6 +148,70 @@ export const getCampaignDetails = async (req, res) => {
   const { campaignId } = req.params;
   const emails = await getCampaignEmails(campaignId);
   res.json({ emails });
+};
+
+export const sendCampaignEmails = async (req, res) => {
+  const { campaignId } = req.body;
+
+  try {
+    const supabase = getSupabaseClient();
+
+    // Get campaign details
+    const { data: campaign, error: campaignError } = await supabase
+      .from('campaigns')
+      .select('*')
+      .eq('id', campaignId)
+      .single();
+
+    if (campaignError || !campaign) {
+      return res.status(404).json({ error: 'Campaign not found' });
+    }
+
+    // Get all queued emails for this campaign
+    const { data: emails, error: emailsError } = await supabase
+      .from('emails')
+      .select('*, journalist:journalists(*)')
+      .eq('campaign_id', campaignId)
+      .eq('status', 'queued')
+      .order('created_at', { ascending: true });
+
+    if (emailsError) {
+      throw emailsError;
+    }
+
+    if (!emails || emails.length === 0) {
+      return res.status(400).json({ error: 'No queued emails found for this campaign' });
+    }
+
+    // Update campaign status to running
+    await supabase
+      .from('campaigns')
+      .update({ status: 'running' })
+      .eq('id', campaignId);
+
+    // Queue all emails for sending
+    let queuedCount = 0;
+    for (const email of emails) {
+      await rateLimiter.queueEmail({
+        to: email.journalist.email,
+        subject: email.subject,
+        html: email.body,
+        emailId: email.id,
+        campaignId: campaign.id
+      });
+      queuedCount++;
+    }
+
+    res.json({
+      success: true,
+      queued: queuedCount,
+      message: `${queuedCount} emails queued for sending`
+    });
+
+  } catch (error) {
+    console.error('Error starting campaign send:', error);
+    res.status(500).json({ error: error.message });
+  }
 };
 
 export const getRateLimiterStatus = (req, res) => {

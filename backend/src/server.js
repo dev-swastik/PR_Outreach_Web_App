@@ -14,7 +14,8 @@ import {
   getCampaigns,
   getCampaignDetails,
   generateEmail,
-  previewEmail
+  previewEmail,
+  sendCampaignEmails
 } from "./controller.js";
 import {
   trackEmailOpen,
@@ -43,6 +44,7 @@ app.use(express.json());
 
 // Campaign routes
 app.post("/start-campaign", startCampaign);
+app.post("/send-campaign", sendCampaignEmails);
 app.get("/campaigns", getCampaigns);
 app.get("/campaigns/:campaignId", getCampaignDetails);
 app.get("/campaigns/:campaignId/analytics", getCampaignAnalytics);

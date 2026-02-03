@@ -37,16 +37,30 @@ export default function SendCampaign() {
         throw new Error('Campaign not found');
       }
 
+      // Initialize progress
       setProgress({
         sent: campaign.sent_count || 0,
         total: campaign.total_emails || 0,
         remaining: (campaign.total_emails || 0) - (campaign.sent_count || 0)
       });
 
-      // The emails are already queued and sending automatically via rate limiter
+      // Start sending the campaign emails
+      const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/send-campaign`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ campaignId: selectedCampaign })
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to start campaign');
+      }
+
+      const result = await response.json();
+      console.log('Campaign started:', result);
+
       // Poll for updates to show progress
       const pollInterval = setInterval(async () => {
-        const response = await api.getCampaignDetails(selectedCampaign);
         const updated = await supabase
           .from('campaigns')
           .select('*')
@@ -76,8 +90,8 @@ export default function SendCampaign() {
       }, 600000);
 
     } catch (error) {
-      console.error('Failed to monitor campaign:', error);
-      alert('Failed to monitor campaign sending');
+      console.error('Failed to start campaign:', error);
+      alert(error.message || 'Failed to start campaign sending');
       setSending(false);
     }
   }
