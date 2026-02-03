@@ -76,7 +76,7 @@
 
 .table-header {
   display: grid;
-  grid-template-columns: 1.5fr 0.5fr 0.5fr 0fr 1fr 0.5fr;
+
   gap: 0.5rem;
   padding: 1rem;
   background: #f8fafc;
