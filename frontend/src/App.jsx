@@ -26,7 +26,7 @@ export default function App() {
 
   useEffect(() => {
     // TODO: Initialize Supabase Auth and check user session
-    const mockUser = { id: '1', email: 'user@example.com' };
+    const mockUser = { id: '1', email: 'user@dumroo.ai' };
     setUser(mockUser);
   }, []);
 
@@ -39,7 +39,7 @@ export default function App() {
     return (
       <div className="auth-container">
         <div className="auth-card">
-          <h1>PR Outreach Platform</h1>
+          <h1>Email Outreach Platform</h1>
           <p>Sign in to continue</p>
           {/* TODO: Add Supabase Auth UI */}
         </div>

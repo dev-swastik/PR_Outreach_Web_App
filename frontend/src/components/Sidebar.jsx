@@ -5,7 +5,7 @@ export default function Sidebar({ tabs, activeTab, onTabChange, user, onLogout }
   return (
     <aside className="sidebar">
       <div className="sidebar-header">
-        <h1 className="logo">PR Outreach</h1>
+        <h1 className="logo">Email Outreach</h1>
         <p className="tagline">Email Campaign Manager</p>
       </div>
 
