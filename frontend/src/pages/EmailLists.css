@@ -79,11 +79,16 @@
   grid-template-columns: 1.5fr 1fr 1fr 1fr 1fr 1.3fr;
   gap: 0.5rem;
   padding: 1rem;
-  border-bottom: 1px solid #e2e8f0;
-  align-items: center;
+  background: #f8fafc;
+  border-bottom: 2px solid #e2e8f0;
   font-weight: 600;
-  color: #64748b;
+  color: #334155;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  white-space: nowrap;
 }
+
 
 .table-row {
   display: grid;
