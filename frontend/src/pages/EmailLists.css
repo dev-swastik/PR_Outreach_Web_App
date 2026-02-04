@@ -76,7 +76,7 @@
 
 .table-header {
   display: grid;
-  grid-template-columns: 1.5fr 1fr 1fr 1fr 1fr 1.3fr;
+  grid-template-columns: 1.5fr 145px 1fr 1fr 1fr 1.3fr;
   gap: 0.5rem;
   padding: 1rem;
   background: #f8fafc;
@@ -92,7 +92,7 @@
 
 .table-row {
   display: grid;
-  grid-template-columns: 1.5fr 1fr 1fr 1fr 1fr 1.3fr;
+  grid-template-columns: 1.5fr 145px 1fr 1fr 1fr 1.3fr;
   gap: 0.5rem;
   padding: 1rem;
   border-bottom: 1px solid #e2e8f0;
