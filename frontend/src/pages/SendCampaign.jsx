@@ -45,7 +45,7 @@ export default function SendCampaign() {
       });
 
       // Start sending the campaign emails
-      const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/send-campaign`, {
+      const response = await fetch(`${import.meta.env.VITE_BACKEND_API_URL}/send-campaign`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ campaignId: selectedCampaign })
@@ -173,7 +173,7 @@ export default function SendCampaign() {
             <button
               className="btn btn-primary"
               onClick={handleStartSending}
-              disabled={false}  //{!selectedCampaign || sending}
+              disabled={!selectedCampaign || sending}
             >
               <Play size={18} />
               Start Campaign
