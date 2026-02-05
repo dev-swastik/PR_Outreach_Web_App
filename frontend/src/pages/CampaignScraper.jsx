@@ -5,7 +5,7 @@ import './CampaignScraper.css';
 
 export default function CampaignScraper() {
   const [campaignName, setCampaignName] = useState('');
-  const [campaignType, setCampaignType] = useState('PR Outreach');
+  const [campaignType, setCampaignType] = useState('Email Outreach');
   const [topic, setTopic] = useState('');
   const [geography, setGeography] = useState('');
   const [scraping, setScraping] = useState(false);
