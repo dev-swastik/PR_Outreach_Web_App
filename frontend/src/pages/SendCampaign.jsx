@@ -173,7 +173,7 @@ export default function SendCampaign() {
             <button
               className="btn btn-primary"
               onClick={handleStartSending}
-              disabled={!selectedCampaign || sending}
+              disabled={false}  //{!selectedCampaign || sending}
             >
               <Play size={18} />
               Start Campaign
