@@ -2,6 +2,8 @@ import { getSupabaseClient } from "./supabase.js";
 import { Resend } from "resend";
 
 const EMAIL_ENABLED = process.env.EMAIL_ENABLED === "true";
+const DEV_MODE = process.env.DEV_MODE === "true";
+const DEV_TEST_EMAIL = process.env.DEV_TEST_EMAIL;
 
 const resend = EMAIL_ENABLED
   ? new Resend(process.env.RESEND_API_KEY)
@@ -42,6 +44,42 @@ export async function sendEmailWithTracking(to, subject, html, emailId) {
     console.log(`✓ Email stored in database with tracking. View in Supabase: emails table, id=${emailId}`);
 
     return { success: true, devMode: true, emailId };
+  }
+
+  // DEV MODE WITH EMAIL SENDING - Send to test email instead of real recipient
+  if (DEV_MODE && DEV_TEST_EMAIL) {
+    console.log(`[DEV MODE] Redirecting email from ${to} to ${DEV_TEST_EMAIL}`);
+
+    const devNotice = `
+    <div style="background:#fff3cd;border:1px solid #ffc107;padding:15px;margin-bottom:20px;border-radius:4px;">
+      <strong>🧪 DEV MODE TEST EMAIL</strong><br/>
+      <strong>Original Recipient:</strong> ${to}<br/>
+      <strong>Original Subject:</strong> ${subject}<br/>
+      <strong>Email ID:</strong> ${emailId}
+    </div>
+    `;
+
+    const devTrackedHtml = devNotice + trackedHtml;
+    const devSubject = `[DEV TEST] ${subject}`;
+
+    const response = await resend.emails.send({
+      from: process.env.FROM_EMAIL,
+      to: DEV_TEST_EMAIL,
+      subject: devSubject,
+      html: devTrackedHtml
+    });
+
+    await supabase
+      .from("emails")
+      .update({
+        resend_email_id: response.id,
+        status: "sent",
+        sent_at: new Date().toISOString()
+      })
+      .eq("id", emailId);
+
+    console.log(`✓ Dev test email sent to ${DEV_TEST_EMAIL} (original: ${to})`);
+    return { success: true, devMode: true, emailId, testEmail: DEV_TEST_EMAIL };
   }
 
   // REAL SEND
