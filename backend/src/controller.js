@@ -173,6 +173,8 @@ export const sendCampaignEmails = async (req, res) => {
     }
 
     // Get all queued emails for this campaign
+    console.log(`[sendCampaignEmails] Looking for queued emails for campaign: ${campaignId}`);
+
     const { data: emails, error: emailsError } = await supabase
       .from('emails')
       .select('*, journalist:journalists(*)')
@@ -181,11 +183,31 @@ export const sendCampaignEmails = async (req, res) => {
       .order('created_at', { ascending: true });
 
     if (emailsError) {
+      console.error('[sendCampaignEmails] Error fetching emails:', emailsError);
       throw emailsError;
     }
 
+    console.log(`[sendCampaignEmails] Found ${emails?.length || 0} queued emails`);
+
     if (!emails || emails.length === 0) {
-      return res.status(400).json({ error: 'No queued emails found for this campaign' });
+      // Check if there are ANY emails for this campaign (debug info)
+      const { data: allEmails } = await supabase
+        .from('emails')
+        .select('id, status')
+        .eq('campaign_id', campaignId);
+
+      console.log(`[sendCampaignEmails] Total emails in campaign: ${allEmails?.length || 0}`);
+      if (allEmails && allEmails.length > 0) {
+        console.log('[sendCampaignEmails] Email statuses:', allEmails.map(e => e.status));
+      }
+
+      return res.status(400).json({
+        error: 'No queued emails found for this campaign',
+        debug: {
+          totalEmails: allEmails?.length || 0,
+          statuses: allEmails?.map(e => e.status) || []
+        }
+      });
     }
 
     // Update campaign status to running

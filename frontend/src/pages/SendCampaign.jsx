@@ -61,27 +61,39 @@ export default function SendCampaign() {
 
       // Poll for updates to show progress
       const pollInterval = setInterval(async () => {
-        const updated = await supabase
-          .from('campaigns')
-          .select('*')
-          .eq('id', selectedCampaign)
-          .single();
+        try {
+          const { data: updated, error } = await supabase
+            .from('campaigns')
+            .select('*')
+            .eq('id', selectedCampaign)
+            .single();
 
-        if (updated.data) {
-          setProgress({
-            sent: updated.data.sent_count || 0,
-            total: updated.data.total_emails || 0,
-            remaining: (updated.data.total_emails || 0) - (updated.data.sent_count || 0),
-          });
-
-          // Stop polling when all emails are sent
-          if (updated.data.sent_count >= updated.data.total_emails) {
-            clearInterval(pollInterval);
-            setSending(false);
-            await loadCampaigns();
+          if (error) {
+            console.error('Polling error:', error);
+            return;
           }
+
+          if (updated) {
+            setProgress({
+              sent: updated.sent_count || 0,
+              total: updated.total_emails || 0,
+              remaining: (updated.total_emails || 0) - (updated.sent_count || 0),
+            });
+
+            console.log('Progress:', updated.sent_count, '/', updated.total_emails);
+
+            // Stop polling when all emails are sent
+            if (updated.sent_count >= updated.total_emails) {
+              clearInterval(pollInterval);
+              setSending(false);
+              await loadCampaigns();
+              alert('Campaign completed! All emails sent.');
+            }
+          }
+        } catch (pollError) {
+          console.error('Polling exception:', pollError);
         }
-      }, 3000); // Poll every 3 seconds
+      }, 2000); // Poll every 2 seconds for faster updates
 
       // Safety timeout after 10 minutes
       setTimeout(() => {
