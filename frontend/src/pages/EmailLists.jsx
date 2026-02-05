@@ -114,8 +114,8 @@ export default function EmailLists() {
   return (
     <div className="email-lists">
       <div className="page-header">
-        <h1>Email Lists</h1>
-        <p>Manage scraped and uploaded email lists</p>
+        <h1>Email Campaigns</h1>
+        <p>Manage scraped and uploaded email Campaigns</p>
       </div>
 
       <div className="lists-toolbar">
