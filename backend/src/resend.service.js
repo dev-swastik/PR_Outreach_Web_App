@@ -64,7 +64,12 @@ export async function sendEmailWithTracking(to, subject, html, emailId) {
       });
       console.log(`✓ Dev test email sent to ${TEST_EMAIL} (Resend ID: ${response.id})`);
     } catch (error) {
-      console.error(`✗ Failed to send dev test email:`, error.message);
+      console.error(`✗ Failed to send dev test email:`, error);
+      console.error(`Error details:`, {
+        message: error.message,
+        statusCode: error.statusCode,
+        name: error.name
+      });
     }
 
     return { success: true, devMode: true, emailId };
