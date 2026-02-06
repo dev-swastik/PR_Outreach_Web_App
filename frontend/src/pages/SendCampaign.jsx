@@ -32,16 +32,21 @@ export default function SendCampaign() {
   async function handleStartSending() {
     setSending(true);
     try {
-      const campaign = campaigns.find(c => c.id === selectedCampaign);
-      if (!campaign) {
+      const { data: freshCampaign, error: fetchError } = await supabase
+        .from('campaigns')
+        .select('*')
+        .eq('id', selectedCampaign)
+        .single();
+
+      if (fetchError || !freshCampaign) {
         throw new Error('Campaign not found');
       }
 
       // Initialize progress
       setProgress({
-        sent: campaign.sent_count || 0,
-        total: campaign.total_emails || 0,
-        remaining: (campaign.total_emails || 0) - (campaign.sent_count || 0)
+        sent: freshCampaign.sent_count || 0,
+        total: freshCampaign.total_emails || 0,
+        remaining: (freshCampaign.total_emails || 0) - (freshCampaign.sent_count || 0)
       });
 
       // Start sending the campaign emails
