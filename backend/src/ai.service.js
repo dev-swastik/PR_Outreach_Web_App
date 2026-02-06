@@ -1,8 +1,15 @@
 import OpenAI from "openai";
 
-const client = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY
-});
+let client = null;
+
+function getClient() {
+  if (!client) {
+    client = new OpenAI({
+      apiKey: process.env.OPENAI_API_KEY
+    });
+  }
+  return client;
+}
 
 export async function generatePersonalizedEmail({
   journalistName,
@@ -43,7 +50,7 @@ Guidelines:
 `;
 
   try {
-    const response = await client.chat.completions.create({
+    const response = await getClient().chat.completions.create({
       model: "gpt-4o-mini",
       messages: [
         { role: "system", content: "You write concise, professional PR emails." },
