@@ -3,7 +3,14 @@ import { Resend } from "resend";
 
 const EMAIL_ENABLED = process.env.EMAIL_ENABLED === "true";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+let resend = null;
+
+function getResendClient() {
+  if (!resend) {
+    resend = new Resend(process.env.RESEND_API_KEY);
+  }
+  return resend;
+}
 
 export async function sendEmailWithTracking(to, subject, html, emailId) {
   const supabase = getSupabaseClient();
@@ -56,7 +63,7 @@ export async function sendEmailWithTracking(to, subject, html, emailId) {
     const devSubject = `[DEV TEST] ${subject}`;
 
     try {
-      const response = await resend.emails.send({
+      const response = await getResendClient().emails.send({
         from: process.env.FROM_EMAIL,
         to: TEST_EMAIL,
         subject: devSubject,
@@ -76,7 +83,7 @@ export async function sendEmailWithTracking(to, subject, html, emailId) {
   }
 
   // REAL SEND
-  const response = await resend.emails.send({
+  const response = await getResendClient().emails.send({
     from: process.env.FROM_EMAIL,
     to,
     subject,
