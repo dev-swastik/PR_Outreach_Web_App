@@ -145,7 +145,7 @@ export default function SendCampaign() {
             <label htmlFor="emailAccount">Email Account</label>
             <div className="email-account">
               <span className="verified-badge">✓ Verified</span>
-              <span>FROM_EMAIL</span>
+              <span>Campaigns@dumroo.ai</span>
             </div>
           </div>
 
