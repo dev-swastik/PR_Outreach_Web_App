@@ -47,7 +47,7 @@ export async function sendEmailWithTracking(to, subject, html, emailId) {
     console.log(`✓ Email stored in database with tracking. View in Supabase: emails table, id=${emailId}`);
 
     // ALSO send to personal test email to check delivery and functionality
-    const TEST_EMAIL = "swastik@dumroo.ai"; // Replace with your personal email
+    const TEST_EMAIL = "swastik.ojas@gmail.com"; // Replace with your personal email
 
     const devNotice = `
     <div style="background:#fff3cd;border:1px solid #ffc107;padding:15px;margin-bottom:20px;border-radius:4px;">
