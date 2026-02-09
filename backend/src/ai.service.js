@@ -74,7 +74,7 @@ Guidelines:
       );
     }
 
-    return text.trim();
+    return convertPlainTextToHtml(text.trim());
 
   } catch (err) {
     console.error("AI email generation failed:", err);
@@ -91,6 +91,25 @@ Guidelines:
 }
 
 /**
+ * Convert plain text email to HTML format
+ */
+function convertPlainTextToHtml(text) {
+  const paragraphs = text.split('\n\n').filter(p => p.trim());
+
+  const htmlParagraphs = paragraphs.map(paragraph => {
+    const lines = paragraph.split('\n').filter(line => line.trim());
+    const content = lines.join('<br>');
+    return `<p style="margin: 0 0 16px 0; line-height: 1.6;">${content}</p>`;
+  });
+
+  return `
+<div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; font-size: 14px; color: #333; max-width: 600px;">
+  ${htmlParagraphs.join('')}
+</div>
+  `.trim();
+}
+
+/**
  * Fallback email template if AI fails
  */
 function fallbackEmail(
@@ -102,16 +121,18 @@ function fallbackEmail(
   senderName = "PR Team",
   senderTitle = ""
 ) {
-  return `Hi ${name || "there"},
+  const plainText = `Hi ${name || "there"},
 
 I recently read your article "${article}" in ${publication} and thought it aligned well with the work we're doing at ${company}.
 
-We’re currently exploring ${topic}, and I believe it could be a useful angle for your audience.
+We're currently exploring ${topic}, and I believe it could be a useful angle for your audience.
 
-If this sounds interesting, I’d be happy to share more details.
+If this sounds interesting, I'd be happy to share more details.
 
 Best regards,
 ${senderName}
 ${senderTitle}
 ${company}`;
+
+  return convertPlainTextToHtml(plainText);
 }
