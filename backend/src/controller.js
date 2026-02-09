@@ -53,6 +53,23 @@ export const startCampaign = async (req, res) => {
       throw new Error('SCRAPER_SERVICE_URL is not defined');
     }
 
+    const supabase = getSupabaseClient();
+
+    // Fetch actual company name from company_info table
+    const { data: companyInfo, error: companyError } = await supabase
+      .from('company_info')
+      .select('company_name')
+      .limit(1)
+      .maybeSingle();
+
+    if (companyError) {
+      console.error("Error fetching company info:", companyError);
+    }
+
+    // Use company name from company_info if available, otherwise fall back to campaign name
+    const actualCompanyName = companyInfo?.company_name || company;
+    console.log("Using company name for emails:", actualCompanyName);
+
     const scraperRes = await fetch(
       `${process.env.SCRAPER_SERVICE_URL}/scrape?topic=${encodeURIComponent(topic)}`
     );
@@ -91,13 +108,13 @@ export const startCampaign = async (req, res) => {
     }
     const article = journalist.recent_articles?.[0];
 
-    // Generate AI email
+    // Generate AI email using actual company name from company_info
     const emailBody = await generatePersonalizedEmail({
         journalistName: `${journalist.first_name} ${journalist.last_name}`.trim(),
         publication: journalist.publication_name,
         articleTitle: article?.title,
         topic,
-        company,
+        company: actualCompanyName,
         senderName,
         senderTitle
     });
