@@ -41,16 +41,16 @@ export default function EmailTracking() {
         ...email,
         journalist_name: email.journalist ? `${email.journalist.first_name} ${email.journalist.last_name}`.trim() : 'Unknown',
         journalist_email: email.journalist?.email || 'N/A',
-        campaign_name: email.campaign?.topic || 'N/A',
-        unsubscribed: email.journalist?.unsubscribed || false
+        campaign_name: email.campaign?.company || 'N/A',
+        is_unsubscribed: email.journalist?.unsubscribed || false
       }));
 
       const queued = emailsWithDetails.filter(e => e.status === 'queued');
-      const delivered = emailsWithDetails.filter(e => e.status === 'sent' || e.delivered_at);
+      const delivered = emailsWithDetails.filter(e => e.status === 'sent' || e.status === 'delivered' || e.delivered_at);
       const opened = emailsWithDetails.filter(e => e.opened_at);
       const clicked = emailsWithDetails.filter(e => e.clicked_at);
       const bounced = emailsWithDetails.filter(e => e.bounced_at);
-      const unsubscribed = emailsWithDetails.filter(e => e.unsubscribed);
+      const unsubscribed = emailsWithDetails.filter(e => e.is_unsubscribed === true);
 
       const totalDelivered = delivered.length;
       const openRate = totalDelivered > 0 ? ((opened.length / totalDelivered) * 100).toFixed(1) : '0';
