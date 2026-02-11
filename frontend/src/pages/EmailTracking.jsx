@@ -1,9 +1,12 @@
 import { useState, useEffect } from 'react';
+import { Filter } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import './EmailTracking.css';
 
 export default function EmailTracking() {
   const [activeTab, setActiveTab] = useState('all');
+  const [campaigns, setCampaigns] = useState([]);
+  const [selectedCampaign, setSelectedCampaign] = useState('all');
   const [trackingData, setTrackingData] = useState({
     all: { count: 0, items: [] },
     queued: { count: 0, items: [] },
@@ -21,19 +24,43 @@ export default function EmailTracking() {
   ]);
 
   useEffect(() => {
-    loadTrackingData();
+    loadCampaigns();
   }, []);
+
+  useEffect(() => {
+    loadTrackingData();
+  }, [selectedCampaign]);
+
+  async function loadCampaigns() {
+    try {
+      const { data, error } = await supabase
+        .from('campaigns')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setCampaigns(data || []);
+    } catch (error) {
+      console.error('Failed to load campaigns:', error);
+    }
+  }
 
   async function loadTrackingData() {
     try {
-      const { data: emails, error } = await supabase
+      let query = supabase
         .from('emails')
         .select(`
           *,
           journalist:journalists(first_name, last_name, email, unsubscribed),
-          campaign:campaigns(topic, company)
+          campaign:campaigns(id, topic, company)
         `)
         .order('created_at', { ascending: false });
+
+      if (selectedCampaign !== 'all') {
+        query = query.eq('campaign_id', selectedCampaign);
+      }
+
+      const { data: emails, error } = await query;
 
       if (error) throw error;
 
@@ -83,6 +110,23 @@ export default function EmailTracking() {
       <div className="page-header">
         <h1>Email Tracking Dashboard</h1>
         <p>Monitor campaign performance and email engagement</p>
+      </div>
+
+      <div className="filter-toolbar">
+        <div className="filter-group">
+          <Filter size={18} />
+          <select
+            value={selectedCampaign}
+            onChange={e => setSelectedCampaign(e.target.value)}
+          >
+            <option value="all">All Campaigns</option>
+            {campaigns.map(campaign => (
+              <option key={campaign.id} value={campaign.id}>
+                {campaign.company} - {campaign.topic}
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
 
       <div className="kpi-grid">

@@ -17,6 +17,39 @@
   font-size: 1rem;
 }
 
+.filter-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 1.5rem;
+}
+
+.filter-group {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  background: white;
+  border: 2px solid #e2e8f0;
+  border-radius: 8px;
+  color: #64748b;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.filter-group select {
+  border: none;
+  background: transparent;
+  font-size: 1rem;
+  color: #1e293b;
+  cursor: pointer;
+  font-family: inherit;
+  font-weight: 500;
+  min-width: 200px;
+}
+
+.filter-group select:focus {
+  outline: none;
+}
+
 .kpi-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
