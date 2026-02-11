@@ -10,10 +10,20 @@ export default function SendCampaign() {
   const [sendingSpeed, setSendingSpeed] = useState('Medium');
   const [sending, setSending] = useState(false);
   const [progress, setProgress] = useState(null);
+  const [emailPreviews, setEmailPreviews] = useState([]);
+  const [loadingPreviews, setLoadingPreviews] = useState(false);
 
   useEffect(() => {
     loadCampaigns();
   }, []);
+
+  useEffect(() => {
+    if (selectedCampaign) {
+      loadEmailPreviews(selectedCampaign);
+    } else {
+      setEmailPreviews([]);
+    }
+  }, [selectedCampaign]);
 
   async function loadCampaigns() {
     try {
@@ -26,6 +36,36 @@ export default function SendCampaign() {
       setCampaigns(data || []);
     } catch (error) {
       console.error('Failed to load campaigns:', error);
+    }
+  }
+
+  async function loadEmailPreviews(campaignId) {
+    setLoadingPreviews(true);
+    try {
+      const { data, error } = await supabase
+        .from('emails')
+        .select(`
+          id,
+          subject,
+          body,
+          status,
+          journalists (
+            first_name,
+            last_name,
+            email,
+            publication_name
+          )
+        `)
+        .eq('campaign_id', campaignId)
+        .limit(5);
+
+      if (error) throw error;
+      setEmailPreviews(data || []);
+    } catch (error) {
+      console.error('Failed to load email previews:', error);
+      setEmailPreviews([]);
+    } finally {
+      setLoadingPreviews(false);
     }
   }
 
@@ -201,6 +241,49 @@ export default function SendCampaign() {
             </button>
           </div>
         </div>
+
+        {selectedCampaign && emailPreviews.length > 0 && (
+          <div className="preview-section">
+            <h2>Email Previews</h2>
+            <p className="preview-description">
+              Showing {emailPreviews.length} sample email(s) from this campaign
+            </p>
+
+            {loadingPreviews ? (
+              <div className="loading-message">Loading previews...</div>
+            ) : (
+              <div className="email-previews">
+                {emailPreviews.map((email) => (
+                  <div key={email.id} className="email-preview-card">
+                    <div className="preview-header">
+                      <div className="recipient-info">
+                        <strong>
+                          {email.journalists?.first_name} {email.journalists?.last_name}
+                        </strong>
+                        <span className="recipient-email">{email.journalists?.email}</span>
+                        {email.journalists?.publication_name && (
+                          <span className="publication">{email.journalists.publication_name}</span>
+                        )}
+                      </div>
+                      <span className={`status-badge ${email.status}`}>
+                        {email.status}
+                      </span>
+                    </div>
+
+                    <div className="preview-content">
+                      <div className="email-subject">
+                        <strong>Subject:</strong> {email.subject}
+                      </div>
+                      <div className="email-body">
+                        {email.body}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
 
         {progress && (
           <div className="progress-section">
