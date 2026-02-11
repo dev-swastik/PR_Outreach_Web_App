@@ -19,6 +19,7 @@
 
 .filter-toolbar {
   display: flex;
+  flex-direction: row-reverse;
   justify-content: flex-end;
   margin-bottom: 1.5rem;
 }
