@@ -141,7 +141,7 @@ export default function EmailLists() {
   });
 
   return (
-    <div className="email-lists">
+    <div className="Campaign-lists">
       <div className="page-header">
         <h1>Email Campaigns</h1>
         <p>Manage scraped and uploaded email Campaigns</p>
@@ -175,7 +175,7 @@ export default function EmailLists() {
 
       <div className="lists-table">
         <div className="table-header">
-          <div>List Name</div>
+          <div>Campaign Name</div>
           <div>Contacts</div>
           <div>Unsubscribed</div>
           <div>Blocked</div>
