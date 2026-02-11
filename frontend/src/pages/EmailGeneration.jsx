@@ -53,7 +53,7 @@ export default function EmailGeneration() {
               value={formData.referenceContent}
               onChange={e => setFormData({ ...formData, referenceContent: e.target.value })}
               placeholder="Paste article, press release, or blog link..."
-              rows="6"
+              rows="2"
               disabled={generating}
             />
           </div>
