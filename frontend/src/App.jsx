@@ -13,7 +13,7 @@ import './App.css';
 const TABS = [
   { id: 'company', label: 'Company Info', icon: Home },
   { id: 'campaign', label: 'Campaign & Scraper', icon: Layout },
-  { id: 'lists', label: 'Email Lists', icon: Mail },
+  { id: 'lists', label: 'Campaign Lists', icon: Mail },
   { id: 'generate', label: 'Generate Emails', icon: Mail },
   { id: 'send', label: 'Send Campaign', icon: Send },
   { id: 'tracking', label: 'Email Tracking', icon: BarChart3 },
