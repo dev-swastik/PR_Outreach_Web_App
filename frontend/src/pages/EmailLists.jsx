@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Upload, Filter, Trash2, Download } from 'lucide-react';
+import { Upload, Filter, Trash2, Download, ChevronDown, ChevronRight } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import './EmailLists.css';
 
@@ -8,6 +8,8 @@ export default function EmailLists() {
   const [filterStatus, setFilterStatus] = useState('all');
   const [uploading, setUploading] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [expandedCampaign, setExpandedCampaign] = useState(null);
+  const [journalists, setJournalists] = useState([]);
 
   useEffect(() => {
     loadCampaigns();
@@ -43,6 +45,33 @@ export default function EmailLists() {
       console.error('Failed to load campaigns:', error);
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function toggleCampaign(campaignId) {
+    if (expandedCampaign === campaignId) {
+      setExpandedCampaign(null);
+      setJournalists([]);
+    } else {
+      setExpandedCampaign(campaignId);
+      await loadJournalists(campaignId);
+    }
+  }
+
+  async function loadJournalists(campaignId) {
+    try {
+      const { data, error } = await supabase
+        .from('emails')
+        .select('journalist:journalists(*)')
+        .eq('campaign_id', campaignId);
+
+      if (error) throw error;
+
+      const journalistsList = data.map(item => item.journalist).filter(Boolean);
+      setJournalists(journalistsList);
+    } catch (error) {
+      console.error('Failed to load journalists:', error);
+      setJournalists([]);
     }
   }
 
@@ -164,16 +193,47 @@ export default function EmailLists() {
           </div>
         ) : (
           filteredLists.map(list => (
-            <div key={list.id} className="table-row">
-              <div><strong>{list.name}</strong></div>
-              <div>{list.count}</div>
-              <div className="unsubscribed">{list.unsubscribed}</div>
-              <div className="blocked">{list.blocked}</div>
-              <div><span className={`badge status-${list.status.toLowerCase()}`}>{list.status}</span></div>
-              <div className="actions">
-                <button title="Download"><Download size={18} /></button>
-                <button title="Delete"><Trash2 size={18} /></button>
+            <div key={list.id}>
+              <div className="table-row clickable" onClick={() => toggleCampaign(list.id)}>
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    {expandedCampaign === list.id ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
+                    <strong>{list.name}</strong>
+                  </div>
+                </div>
+                <div>{list.count}</div>
+                <div className="unsubscribed">{list.unsubscribed}</div>
+                <div className="blocked">{list.blocked}</div>
+                <div><span className={`badge status-${list.status.toLowerCase()}`}>{list.status}</span></div>
+                <div className="actions" onClick={e => e.stopPropagation()}>
+                  <button title="Download"><Download size={18} /></button>
+                  <button title="Delete"><Trash2 size={18} /></button>
+                </div>
               </div>
+
+              {expandedCampaign === list.id && (
+                <div className="journalists-list">
+                  <h3>Journalists in this campaign ({journalists.length})</h3>
+                  {journalists.length === 0 ? (
+                    <p className="empty-message">No journalists found in this campaign.</p>
+                  ) : (
+                    <div className="journalists-table">
+                      <div className="journalists-header">
+                        <div>Name</div>
+                        <div>Email</div>
+                        <div>Publication</div>
+                      </div>
+                      {journalists.map((journalist, idx) => (
+                        <div key={journalist.id || idx} className="journalist-row">
+                          <div>{journalist.first_name} {journalist.last_name}</div>
+                          <div className="email-cell">{journalist.email}</div>
+                          <div>{journalist.publication_name || '-'}</div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           ))
         )}
