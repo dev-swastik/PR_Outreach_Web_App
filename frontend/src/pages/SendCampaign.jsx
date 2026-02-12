@@ -57,7 +57,7 @@ export default function SendCampaign() {
           )
         `)
         .eq('campaign_id', campaignId)
-        .limit(5);
+        .limit(20);
 
       if (error) throw error;
       setEmailPreviews(data || []);
