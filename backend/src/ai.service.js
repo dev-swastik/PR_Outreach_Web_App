@@ -153,6 +153,96 @@ function convertPlainTextToHtml(text) {
   };
 }
 
+export async function generateCustomEmail({
+  journalistName,
+  publication,
+  referenceContent,
+  objective,
+  tone,
+  length,
+  companyName,
+  companyDescription
+}) {
+  if (!process.env.OPENAI_API_KEY) {
+    console.error("ERROR: OPENAI_API_KEY not set in environment!");
+    return {
+      subject: 'Partnership Opportunity',
+      body: '<p>Hi, I wanted to reach out regarding a potential collaboration.</p>'
+    };
+  }
+
+  const lengthGuide = {
+    'Short': '50-75 words',
+    'Medium': '100-150 words',
+    'Long': '150-200 words'
+  };
+
+  const prompt = `Generate a professional email with these specifications:
+
+Recipient: ${journalistName || 'the recipient'}
+${publication ? `Publication: ${publication}` : ''}
+Objective: ${objective}
+Tone: ${tone}
+Length: ${lengthGuide[length] || '100-150 words'}
+${referenceContent ? `Reference Content: ${referenceContent}` : ''}
+${companyName ? `Company: ${companyName}` : ''}
+${companyDescription ? `Company Description: ${companyDescription}` : ''}
+
+Generate an email with:
+1. A compelling subject line (max 60 characters)
+2. Professional email body following these rules:
+   - Start with a personalized greeting
+   - Reference the provided context naturally
+   - Clearly state the objective
+   - Include a soft call-to-action
+   - End with a professional signature
+   - Use the specified tone throughout
+
+Format your response EXACTLY as:
+Subject: [Your subject line]
+
+[Email body content]
+
+IMPORTANT: You must include "Subject:" at the start and separate it from the body with a blank line.`;
+
+  try {
+    const response = await getClient().chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [
+        { role: "system", content: "You write concise, professional PR emails. Always format responses with 'Subject:' followed by the subject line, then a blank line, then the email body." },
+        { role: "user", content: prompt }
+      ],
+      temperature: 0.7
+    });
+
+    const text = response.choices?.[0]?.message?.content;
+
+    if (!text) {
+      console.warn("OpenAI returned empty response", response);
+      return {
+        subject: 'Partnership Opportunity',
+        body: '<p>Hi, I wanted to reach out regarding a potential collaboration.</p>'
+      };
+    }
+
+    const subjectMatch = text.match(/Subject:\s*(.+?)(?:\n|$)/i);
+    const subject = subjectMatch ? subjectMatch[1].trim() : 'Follow Up';
+
+    let bodyText = text.replace(/Subject:\s*.+?(?:\n\s*\n|\n)/i, '').trim();
+
+    const { html } = convertPlainTextToHtml(bodyText);
+
+    return { subject, body: html };
+
+  } catch (err) {
+    console.error("AI custom email generation failed:", err);
+    return {
+      subject: 'Partnership Opportunity',
+      body: '<p>Hi, I wanted to reach out regarding a potential collaboration.</p>'
+    };
+  }
+}
+
 /**
  * Fallback email template if AI fails
  */

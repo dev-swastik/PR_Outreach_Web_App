@@ -7,7 +7,7 @@ import {
   getCampaignEmails,
   getSupabaseClient
 } from "./supabase.js";
-import { generatePersonalizedEmail } from "./ai.service.js";
+import { generatePersonalizedEmail, generateCustomEmail } from "./ai.service.js";
 import { rateLimiter } from "./rateLimiter.service.js";
 import { sendEmailWithTracking } from "./resend.service.js";
 
@@ -41,33 +41,27 @@ export const generateEmail = async (req, res) => {
       }
     }
 
-    const context = {
+    // Fetch company info from database
+    const { data: dbCompanyInfo } = await supabase
+      .from('company_info')
+      .select('company_name, description')
+      .limit(1)
+      .maybeSingle();
+
+    const finalCompanyInfo = companyInfo || dbCompanyInfo || {};
+
+    const result = await generateCustomEmail({
+      journalistName: journalistInfo.name || '',
+      publication: journalistInfo.publication || '',
       referenceContent: referenceContent || articleReference,
       objective: objective || 'Pitch article',
       tone: tone || 'Professional',
       length: length || 'Medium',
-      companyInfo: companyInfo || {}
-    };
+      companyName: finalCompanyInfo.company_name || '',
+      companyDescription: finalCompanyInfo.description || ''
+    });
 
-    const prompt = `Generate a personalized email with the following context:
-    ${journalistInfo.name ? `Recipient: ${journalistInfo.name}` : ''}
-    ${journalistInfo.publication ? `Publication: ${journalistInfo.publication}` : ''}
-    Objective: ${context.objective}
-    Tone: ${context.tone}
-    Length: ${context.length}
-    ${context.referenceContent ? `Reference Content: ${context.referenceContent}` : ''}
-    ${context.companyInfo.company_name ? `Company: ${context.companyInfo.company_name}` : ''}
-    ${context.companyInfo.description ? `About: ${context.companyInfo.description}` : ''}
-
-Generate a professional email with a subject line and body.`;
-
-    const email = await generatePersonalizedEmail(journalistInfo, context.companyInfo, prompt);
-
-    const subjectMatch = email.match(/Subject:\s*(.+)/);
-    const subject = subjectMatch ? subjectMatch[1].trim() : 'Follow Up';
-    const body = email.replace(/Subject:\s*.+\n\n?/, '').trim();
-
-    res.json({ subject, body });
+    res.json(result);
   } catch (error) {
     console.error('Error generating email:', error);
     res.status(500).json({ error: error.message });
