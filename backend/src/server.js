@@ -20,7 +20,8 @@ import {
   getCampaignDetails,
   generateEmail,
   previewEmail,
-  sendCampaignEmails
+  sendCampaignEmails,
+  sendSingleEmail
 } from "./controller.js";
 import {
   trackEmailOpen,
@@ -57,6 +58,9 @@ app.get("/campaigns/:campaignId/analytics", getCampaignAnalytics);
 
 // Email generation
 app.post("/generate-email", generateEmail);
+
+// Send single email
+app.post("/send-single-email", sendSingleEmail);
 
 // Email preview (for testing in dev mode)
 app.get("/preview-email/:emailId", previewEmail);

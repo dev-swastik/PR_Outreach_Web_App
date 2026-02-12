@@ -1,6 +1,7 @@
-import { useState } from 'react';
-import { Wand2, Copy, Save } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Wand2, Copy, Save, Send } from 'lucide-react';
 import { api } from '../lib/api';
+import { supabase } from '../lib/supabase';
 import './EmailGeneration.css';
 
 export default function EmailGeneration() {
@@ -12,6 +13,27 @@ export default function EmailGeneration() {
   });
   const [preview, setPreview] = useState(null);
   const [generating, setGenerating] = useState(false);
+  const [journalists, setJournalists] = useState([]);
+  const [selectedJournalist, setSelectedJournalist] = useState('');
+  const [sending, setSending] = useState(false);
+
+  useEffect(() => {
+    loadJournalists();
+  }, []);
+
+  async function loadJournalists() {
+    try {
+      const { data, error } = await supabase
+        .from('journalists')
+        .select('id, first_name, last_name, email, publication_name')
+        .order('first_name', { ascending: true });
+
+      if (error) throw error;
+      setJournalists(data || []);
+    } catch (error) {
+      console.error('Failed to load journalists:', error);
+    }
+  }
 
   async function handleGenerate() {
     setGenerating(true);
@@ -35,6 +57,53 @@ export default function EmailGeneration() {
     }
   }
 
+  async function handleSendEmail() {
+    if (!selectedJournalist) {
+      alert('Please select a journalist first');
+      return;
+    }
+
+    if (!preview) {
+      alert('Please generate an email first');
+      return;
+    }
+
+    setSending(true);
+    try {
+      const journalist = journalists.find(j => j.id === selectedJournalist);
+
+      const response = await fetch(`${import.meta.env.VITE_BACKEND_API_URL}/send-single-email`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          to: journalist.email,
+          subject: preview.subject,
+          body: preview.body,
+          journalistId: selectedJournalist,
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to send email');
+      }
+
+      alert(`Email sent successfully to ${journalist.first_name} ${journalist.last_name}!`);
+    } catch (error) {
+      console.error('Failed to send email:', error);
+      alert('Failed to send email. Please try again.');
+    } finally {
+      setSending(false);
+    }
+  }
+
+  function handleCopyToClipboard() {
+    if (!preview) return;
+
+    const emailContent = `Subject: ${preview.subject}\n\n${preview.body}`;
+    navigator.clipboard.writeText(emailContent);
+    alert('Email copied to clipboard!');
+  }
+
   return (
     <div className="email-generation">
       <div className="page-header">
@@ -45,6 +114,24 @@ export default function EmailGeneration() {
       <div className="generation-container">
         <div className="inputs-section">
           <h2>Email Configuration</h2>
+
+          <div className="form-group">
+            <label htmlFor="journalist">Select Journalist</label>
+            <select
+              id="journalist"
+              value={selectedJournalist}
+              onChange={e => setSelectedJournalist(e.target.value)}
+              disabled={generating || sending}
+            >
+              <option value="">Choose a journalist...</option>
+              {journalists.map(journalist => (
+                <option key={journalist.id} value={journalist.id}>
+                  {journalist.first_name} {journalist.last_name} - {journalist.email}
+                  {journalist.publication_name && ` (${journalist.publication_name})`}
+                </option>
+              ))}
+            </select>
+          </div>
 
           <div className="form-group">
             <label htmlFor="referenceContent">Reference Content</label>
@@ -123,13 +210,26 @@ export default function EmailGeneration() {
               </div>
 
               <div className="preview-actions">
-                <button className="btn btn-secondary">
+                <button className="btn btn-secondary" onClick={handleCopyToClipboard}>
                   <Copy size={16} /> Copy
                 </button>
-                <button className="btn btn-primary">
-                  <Save size={16} /> Save Template
+                <button
+                  className="btn btn-primary"
+                  onClick={handleSendEmail}
+                  disabled={!selectedJournalist || sending}
+                >
+                  {sending ? 'Sending...' : <><Send size={16} /> Send Email</>}
                 </button>
               </div>
+
+              {selectedJournalist && (
+                <div className="selected-recipient">
+                  <strong>Recipient:</strong>{' '}
+                  {journalists.find(j => j.id === selectedJournalist)?.first_name}{' '}
+                  {journalists.find(j => j.id === selectedJournalist)?.last_name}{' '}
+                  ({journalists.find(j => j.id === selectedJournalist)?.email})
+                </div>
+              )}
             </div>
           </div>
         )}

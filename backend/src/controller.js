@@ -9,6 +9,7 @@ import {
 } from "./supabase.js";
 import { generatePersonalizedEmail } from "./ai.service.js";
 import { rateLimiter } from "./rateLimiter.service.js";
+import { sendEmailWithTracking } from "./resend.service.js";
 
 export const generateEmail = async (req, res) => {
   const { referenceContent, objective, tone, length, companyInfo } = req.body;
@@ -334,5 +335,43 @@ export const previewEmail = async (req, res) => {
   } catch (error) {
     console.error("Preview error:", error);
     res.status(500).send("<h1>Error loading preview</h1>");
+  }
+};
+
+export const sendSingleEmail = async (req, res) => {
+  const { to, subject, body, journalistId } = req.body;
+
+  if (!to || !subject || !body || !journalistId) {
+    return res.status(400).json({ error: 'Missing required fields: to, subject, body, journalistId' });
+  }
+
+  const supabase = getSupabaseClient();
+
+  try {
+    const { data: journalist, error: journalistError } = await supabase
+      .from('journalists')
+      .select('*')
+      .eq('id', journalistId)
+      .maybeSingle();
+
+    if (journalistError || !journalist) {
+      return res.status(404).json({ error: 'Journalist not found' });
+    }
+
+    const emailRecord = await createEmailRecord(null, journalistId, subject, body);
+
+    const htmlBody = body.replace(/\n/g, '<br>');
+
+    await sendEmailWithTracking(to, subject, htmlBody, emailRecord.id);
+
+    res.json({
+      success: true,
+      emailId: emailRecord.id,
+      message: `Email sent successfully to ${journalist.first_name} ${journalist.last_name}`
+    });
+
+  } catch (error) {
+    console.error('Error sending single email:', error);
+    res.status(500).json({ error: error.message });
   }
 };

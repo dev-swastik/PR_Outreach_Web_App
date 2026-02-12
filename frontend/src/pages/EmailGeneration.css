@@ -173,6 +173,19 @@
   flex: 1;
 }
 
+.selected-recipient {
+  padding: 1rem;
+  background: #f0f9ff;
+  border: 2px solid #bfdbfe;
+  border-radius: 8px;
+  color: #1e40af;
+  font-size: 0.95rem;
+}
+
+.selected-recipient strong {
+  color: #1e3a8a;
+}
+
 @media (max-width: 1024px) {
   .generation-container {
     grid-template-columns: 1fr;
