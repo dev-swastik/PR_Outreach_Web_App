@@ -83,15 +83,46 @@ export default function EmailLists() {
     try {
       const text = await file.text();
       const rows = text.split('\n').filter(row => row.trim());
+
+      if (rows.length < 2) {
+        throw new Error('CSV file must contain at least a header row and one data row');
+      }
+
+      const headers = rows[0].split(',').map(h => h.trim().toLowerCase());
+
+      const emailIdx = headers.findIndex(h => h === 'email');
+      const firstNameIdx = headers.findIndex(h => h === 'firstname' || h === 'first_name' || h === 'first name');
+      const lastNameIdx = headers.findIndex(h => h === 'lastname' || h === 'last_name' || h === 'last name');
+      const publicationIdx = headers.findIndex(h => h === 'publication');
+      const subjectIdx = headers.findIndex(h => h === 'subject' || h === 'email_subject');
+      const bodyIdx = headers.findIndex(h => h === 'body' || h === 'email_body' || h === 'message');
+
+      if (emailIdx === -1) {
+        throw new Error('CSV must contain an "email" column');
+      }
+
       const journalistsData = rows.slice(1).map(row => {
-        const [email, firstName, lastName, publication] = row.split(',').map(s => s.trim());
-        return { email, firstName, lastName, publication };
+        const cols = row.split(',').map(s => s.trim());
+        return {
+          email: cols[emailIdx],
+          firstName: firstNameIdx >= 0 ? cols[firstNameIdx] : '',
+          lastName: lastNameIdx >= 0 ? cols[lastNameIdx] : '',
+          publication: publicationIdx >= 0 ? cols[publicationIdx] : '',
+          subject: subjectIdx >= 0 ? cols[subjectIdx] : '',
+          body: bodyIdx >= 0 ? cols[bodyIdx] : ''
+        };
       }).filter(j => j.email);
+
+      if (journalistsData.length === 0) {
+        throw new Error('No valid email addresses found in CSV');
+      }
+
+      const campaignName = file.name.replace('.csv', '');
 
       const { data: campaign, error: campaignError } = await supabase
         .from('campaigns')
         .insert({
-          company: file.name.replace('.csv', ''),
+          company: campaignName,
           topic: 'Uploaded List',
           status: 'draft',
           total_emails: journalistsData.length,
@@ -119,19 +150,21 @@ export default function EmailLists() {
             .insert({
               campaign_id: campaign.id,
               journalist_id: journalist.id,
-              subject: '',
-              body: '',
+              subject: j.subject || `Outreach - ${campaignName}`,
+              body: j.body || '',
               status: 'draft',
             });
         }
       }
 
       await loadCampaigns();
+      alert(`Successfully uploaded ${journalistsData.length} contacts to campaign "${campaignName}"`);
     } catch (error) {
       console.error('Failed to upload file:', error);
       alert('Failed to upload file: ' + error.message);
     } finally {
       setUploading(false);
+      e.target.value = '';
     }
   }
 
@@ -150,7 +183,7 @@ export default function EmailLists() {
       <div className="lists-toolbar">
         <label className="upload-btn">
           <Upload size={18} />
-          Upload CSV
+          {uploading ? 'Uploading...' : 'Upload CSV'}
           <input
             type="file"
             accept=".csv"
@@ -171,6 +204,31 @@ export default function EmailLists() {
             <option value="archived">Archived</option>
           </select>
         </div>
+      </div>
+
+      <div className="csv-format-info" style={{
+        backgroundColor: '#f0f9ff',
+        border: '1px solid #bae6fd',
+        borderRadius: '8px',
+        padding: '16px',
+        marginBottom: '24px'
+      }}>
+        <h3 style={{ marginTop: 0, marginBottom: '8px', fontSize: '14px', fontWeight: 600 }}>CSV Format</h3>
+        <p style={{ margin: '0 0 8px 0', fontSize: '13px', color: '#475569' }}>
+          Your CSV file must include an <strong>email</strong> column. Optional columns: first_name, last_name, publication, subject, body
+        </p>
+        <code style={{
+          display: 'block',
+          backgroundColor: '#e0f2fe',
+          padding: '8px',
+          borderRadius: '4px',
+          fontSize: '12px',
+          fontFamily: 'monospace',
+          overflowX: 'auto'
+        }}>
+          email,first_name,last_name,publication,subject,body<br/>
+          john@example.com,John,Doe,TechCrunch,Story Idea,Hi John...
+        </code>
       </div>
 
       <div className="lists-table">
