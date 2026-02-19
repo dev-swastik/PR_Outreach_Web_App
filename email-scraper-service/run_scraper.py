@@ -99,7 +99,21 @@ def scrape_journalists_from_publishers(topic: str, geography: str = None):
     })
 
     # Parse topic keywords for matching
-    topic_keywords = [kw.strip().lower() for kw in topic.split(',')]
+    # Extract meaningful keywords from phrases like "AI in EdTech, AI in Education"
+    import re
+    topic_keywords = []
+    for phrase in topic.split(','):
+        phrase = phrase.strip().lower()
+        # Extract key terms (remove common words like 'in', 'the', 'of', 'and')
+        words = re.findall(r'\b\w+\b', phrase)
+        # Filter out stop words
+        stop_words = {'in', 'the', 'of', 'and', 'or', 'a', 'an', 'to', 'for'}
+        meaningful_words = [w for w in words if w not in stop_words and len(w) > 2]
+        topic_keywords.extend(meaningful_words)
+
+    # Remove duplicates while preserving order
+    topic_keywords = list(dict.fromkeys(topic_keywords))
+    print(f"Topic keywords for matching: {topic_keywords}")
 
     # Filter publishers by geography if specified
     publishers_to_scrape = PUBLISHERS
@@ -152,6 +166,10 @@ def scrape_journalists_from_publishers(topic: str, geography: str = None):
                 print(f"Geography '{geography}' not recognized, using all publishers")
                 publishers_to_scrape = PUBLISHERS
 
+    total_articles_checked = 0
+    matched_articles = 0
+    articles_with_authors = 0
+
     for idx, pub in enumerate(publishers_to_scrape, 1):
         print(f"[{idx}/{len(publishers_to_scrape)}] Fetching RSS from {pub['name']}...")
         try:
@@ -164,7 +182,10 @@ def scrape_journalists_from_publishers(topic: str, geography: str = None):
             print(f"  ERROR fetching {pub['name']}: {e}")
             continue
 
+        pub_matched = 0
         for entry in feed.entries[:20]:
+            total_articles_checked += 1
+
             # Check if article matches topic keywords
             article_title = entry.get("title", "").lower()
             article_summary = entry.get("summary", "").lower()
@@ -174,11 +195,16 @@ def scrape_journalists_from_publishers(topic: str, geography: str = None):
             if not any(keyword in article_text for keyword in topic_keywords):
                 continue
 
+            matched_articles += 1
+            pub_matched += 1
+
             author_raw = extract_author(entry, pub["author_fields"])
             parsed_authors = parse_name(author_raw)
 
             if not parsed_authors:
                 continue
+
+            articles_with_authors += 1
 
             # Create separate entries for each co-author
             for first_name, last_name in parsed_authors:
@@ -198,6 +224,16 @@ def scrape_journalists_from_publishers(topic: str, geography: str = None):
                     "url": entry.get("link", ""),
                     "published": entry.get("published", "")
                 })
+
+        if pub_matched > 0:
+            print(f"  ✓ Matched {pub_matched} topic-relevant articles")
+
+    print(f"\n--- Scraping Statistics ---")
+    print(f"Total articles checked: {total_articles_checked}")
+    print(f"Articles matching topic: {matched_articles}")
+    print(f"Articles with valid authors: {articles_with_authors}")
+    print(f"Unique journalists found: {len(journalists)}")
+    print(f"---------------------------\n")
 
     return [
         {
