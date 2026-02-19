@@ -109,15 +109,32 @@ export default function CampaignScraper() {
           </div>
 
           <div className="form-group">
-            <label htmlFor="geography">Target Geography (optional)</label>
-            <input
+            <label htmlFor="geography">Target Geography</label>
+            <select
               id="geography"
-              type="text"
               value={geography}
               onChange={e => setGeography(e.target.value)}
-              placeholder="e.g., US, Europe, Global"
               disabled={scraping}
-            />
+            >
+              <option value="">All Publishers (Global)</option>
+              <option value="US">United States (All US)</option>
+              <optgroup label="US Regions">
+                <option value="Northeast">Northeast (NY, Boston, Philadelphia)</option>
+                <option value="West Coast">West Coast (San Francisco, LA, San Diego)</option>
+                <option value="East Coast">East Coast (Northeast + Mid-Atlantic)</option>
+                <option value="Southeast">Southeast (Miami, Atlanta, Charlotte)</option>
+                <option value="Southwest">Southwest (Dallas, Houston, Austin, Phoenix)</option>
+                <option value="Midwest">Midwest (Chicago, Detroit, Minneapolis)</option>
+                <option value="Mid-Atlantic">Mid-Atlantic (Washington DC)</option>
+                <option value="Pacific Northwest">Pacific Northwest (Seattle, Portland)</option>
+                <option value="Mountain West">Mountain West (Denver)</option>
+              </optgroup>
+              <option value="National">National (Multi-region US outlets)</option>
+              <option value="International">International Only (BBC)</option>
+            </select>
+            <small style={{ display: 'block', marginTop: '8px', color: '#666', fontSize: '13px' }}>
+              Select a region to filter which RSS feeds are scraped
+            </small>
           </div>
 
           <button
