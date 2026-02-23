@@ -8,7 +8,7 @@ PUBLISHERS = [
     },
     {
         "name": "Reuters",
-        "rss": "http://feeds.reuters.com/reuters/technologyNews",
+        "rss": "https://www.reutersagency.com/feed/?taxonomy=best-topics&post_type=best",
         "domain": "reuters.com",
         "region": "National",
         "author_fields": ["author"]
@@ -120,7 +120,7 @@ PUBLISHERS = [
     },
     {
         "name": "Philadelphia Inquirer Business",
-        "rss": "https://www.inquirer.com/business/arc.xml",
+        "rss": "https://www.inquirer.com/arc/outboundfeeds/rss/category/business/",
         "domain": "inquirer.com",
         "region": "Northeast",
         "author_fields": ["author", "dc_creator"]
@@ -161,20 +161,6 @@ PUBLISHERS = [
         "author_fields": ["author", "dc_creator"]
     },
     {
-        "name": "Dallas Morning News Business",
-        "rss": "https://www.dallasnews.com/business/rss/",
-        "domain": "dallasnews.com",
-        "region": "Southwest",
-        "author_fields": ["author", "dc_creator"]
-    },
-    {
-        "name": "Houston Chronicle Business",
-        "rss": "https://www.houstonchronicle.com/business/rss/",
-        "domain": "houstonchronicle.com",
-        "region": "Southwest",
-        "author_fields": ["author", "dc_creator"]
-    },
-    {
         "name": "Austin American-Statesman Tech",
         "rss": "https://www.statesman.com/business/?outputType=rss",
         "domain": "statesman.com",
@@ -192,13 +178,6 @@ PUBLISHERS = [
         "name": "Detroit Free Press Business",
         "rss": "https://www.freep.com/business/?outputType=rss",
         "domain": "freep.com",
-        "region": "Midwest",
-        "author_fields": ["author", "dc_creator"]
-    },
-    {
-        "name": "Minneapolis Star Tribune Business",
-        "rss": "https://www.startribune.com/business/?rss_full=1",
-        "domain": "startribune.com",
         "region": "Midwest",
         "author_fields": ["author", "dc_creator"]
     },
@@ -225,7 +204,7 @@ PUBLISHERS = [
     },
     {
         "name": "Portland Oregonian Business",
-        "rss": "https://www.oregonlive.com/business/index.ssf/rss.xml",
+        "rss": "https://www.oregonlive.com/arc/outboundfeeds/rss/category/business/",
         "domain": "oregonlive.com",
         "region": "Pacific Northwest",
         "author_fields": ["author", "dc_creator"]
@@ -234,13 +213,6 @@ PUBLISHERS = [
         "name": "Los Angeles Times Business",
         "rss": "https://www.latimes.com/business/rss2.0.xml",
         "domain": "latimes.com",
-        "region": "West Coast",
-        "author_fields": ["author", "dc_creator"]
-    },
-    {
-        "name": "San Francisco Chronicle Business",
-        "rss": "https://www.sfchronicle.com/business/feed/",
-        "domain": "sfchronicle.com",
         "region": "West Coast",
         "author_fields": ["author", "dc_creator"]
     },
@@ -259,13 +231,6 @@ PUBLISHERS = [
         "author_fields": ["author", "dc_creator"]
     },
     {
-        "name": "Silicon Valley Business Journal",
-        "rss": "https://www.bizjournals.com/sanjose/feeds/rss/news.xml",
-        "domain": "bizjournals.com/sanjose",
-        "region": "West Coast",
-        "author_fields": ["author", "dc_creator"]
-    },
-    {
         "name": "Mashable",
         "rss": "https://mashable.com/feeds/rss/all",
         "domain": "mashable.com",
@@ -273,10 +238,10 @@ PUBLISHERS = [
         "author_fields": ["author", "dc_creator"]
     },
     {
-        "name": "The Information",
-        "rss": "https://www.theinformation.com/feed",
-        "domain": "theinformation.com",
-        "region": "West Coast",
+        "name": "TechRadar",
+        "rss": "https://www.techradar.com/rss",
+        "domain": "techradar.com",
+        "region": "International",
         "author_fields": ["author", "dc_creator"]
     }
 ]
